@@ -1,0 +1,25 @@
+{
+  "id": "screenshots-2026-04-01-dev-career",
+  "created_at": "2026-04-01T21:46:00-05:00",
+  "source_date": "2026-04-01",
+  "source_project": "Luna_Export",
+  "artifact_type": "screenshot_export",
+  "publish_target": "screenshots",
+  "status": "pending",
+  "approved": false,
+  "public_safe": false,
+  "title": "Screenshot Export Placeholder",
+  "summary": "Placeholder screenshot export representing dev and career section crops.",
+  "tags": [
+    "screenshots",
+    "career",
+    "dev"
+  ],
+  "related_files": [
+    "exports/pending/screenshots/2026-04-01-screenshot-export.txt"
+  ],
+  "screenshot_files": [
+    "exports/pending/screenshots/2026-04-01-screenshot-export.txt"
+  ],
+  "notes": "Seed placeholder until real cropped image assets are generated."
+}

@@ -1,0 +1,88 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "metadata/schemas/export_artifact.schema.json",
+  "title": "Export Artifact",
+  "type": "object",
+  "required": [
+    "id",
+    "created_at",
+    "source_date",
+    "source_project",
+    "artifact_type",
+    "publish_target",
+    "status",
+    "approved",
+    "public_safe",
+    "title",
+    "summary",
+    "tags",
+    "related_files",
+    "screenshot_files",
+    "notes"
+  ],
+  "properties": {
+    "id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "created_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "source_date": {
+      "type": "string",
+      "format": "date"
+    },
+    "source_project": {
+      "type": "string"
+    },
+    "artifact_type": {
+      "type": "string"
+    },
+    "publish_target": {
+      "type": "string"
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "pending",
+        "approved",
+        "archived"
+      ]
+    },
+    "approved": {
+      "type": "boolean"
+    },
+    "public_safe": {
+      "type": "boolean"
+    },
+    "title": {
+      "type": "string"
+    },
+    "summary": {
+      "type": "string"
+    },
+    "tags": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "related_files": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "screenshot_files": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "notes": {
+      "type": "string"
+    }
+  },
+  "additionalProperties": true
+}
