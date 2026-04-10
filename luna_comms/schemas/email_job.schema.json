@@ -1,0 +1,20 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "luna_comms/schemas/email_job.schema.json",
+  "title": "Luna Comms Email Job Payload",
+  "type": "object",
+  "required": ["to", "subject", "body_text", "embed_summary", "attachments"],
+  "properties": {
+    "to": {"type": "array", "items": {"type": "string"}},
+    "cc": {"type": "array", "items": {"type": "string"}},
+    "bcc": {"type": "array", "items": {"type": "string"}},
+    "subject": {"type": "string"},
+    "body_text": {"type": "string"},
+    "body_html": {"type": "string"},
+    "embed_summary": {"type": "boolean"},
+    "source_summary_excerpt": {"type": "string"},
+    "attachments": {"type": "array", "items": {"type": "string"}
+    }
+  },
+  "additionalProperties": true
+}

@@ -1,0 +1,28 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "luna_comms/schemas/calendar_sync_job.schema.json",
+  "title": "Luna Comms Calendar Sync Job Payload",
+  "type": "object",
+  "required": [
+    "action",
+    "calendar_id",
+    "local_event_id",
+    "summary",
+    "start_at",
+    "end_at",
+    "timezone"
+  ],
+  "properties": {
+    "action": {"type": "string", "enum": ["upsert", "cancel"]},
+    "calendar_id": {"type": "string"},
+    "local_event_id": {"type": "string"},
+    "google_event_id": {"type": "string"},
+    "summary": {"type": "string"},
+    "description": {"type": "string"},
+    "location": {"type": "string"},
+    "start_at": {"type": "string"},
+    "end_at": {"type": "string"},
+    "timezone": {"type": "string"}
+  },
+  "additionalProperties": true
+}

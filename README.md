@@ -72,3 +72,88 @@ Initial placeholders included tonight:
 - reference examples under `examples/`
 
 These placeholders exist to prove the staging and approval flow before any watcher or automation work is added.
+
+## Daily Devlog Email Digest (03:00 local)
+
+Portfolio landing-page pushes now append receipt rows to:
+
+- `exports/staged/email/ledger/portfolio_push_receipts.jsonl`
+
+The digest sender reads prior-day receipt rows and sends one email summary:
+
+```bash
+python3 scripts/preflight_daily_devlog_email.py --json
+python3 scripts/send_daily_devlog_email_digest.py --dry-run --json
+python3 scripts/send_daily_devlog_email_digest.py --json
+```
+
+Required environment variables:
+
+- `GOOGLE_OAUTH_TOKEN_PATH` (OAuth token with `gmail.send` scope)
+- `LUNA_DAILY_REPORT_EMAIL_TO`
+
+Optional:
+
+- `LUNA_DAILY_REPORT_EMAIL_FROM`
+- `LUNA_DAILY_REPORT_TIMEZONE` (defaults to system local timezone)
+
+Systemd user units are provided under `ops/systemd/`:
+
+- `luna-export-daily-devlog-email.service`
+- `luna-export-daily-devlog-email.timer`
+
+Setup example:
+
+```bash
+cp ops/systemd/luna-export-email.env.example ops/systemd/luna-export-email.env
+systemctl --user link ~/Desktop/Projects/Luna_Export/ops/systemd/luna-export-daily-devlog-email.service
+systemctl --user link ~/Desktop/Projects/Luna_Export/ops/systemd/luna-export-daily-devlog-email.timer
+systemctl --user enable --now luna-export-daily-devlog-email.timer
+systemctl --user list-timers | rg luna-export-daily-devlog-email
+```
+
+## Luna_Comms Outbound Subsystem
+
+Luna_Comms is the outbound communication layer for Luna_Export. It is intentionally suited for manual portfolio/demo runs and prepares outbound jobs for:
+
+- Gmail report delivery
+- Google Calendar outbound sync
+- Cross-device update notifications
+
+State is filesystem-visible and JSON-first under:
+
+- `exports/staged/luna_comms/inbox/`
+- `exports/staged/luna_comms/jobs/{detected,prepared,queued,sent,acknowledged,archived,failed,dead_letter}/`
+- `exports/staged/luna_comms/receipts/{gmail,calendar,notifications}/`
+- `exports/staged/luna_comms/ledger/*.jsonl`
+- `exports/staged/luna_comms/feeds/device_updates/`
+
+Core scripts:
+
+```bash
+python3 scripts/luna_comms_detect_events.py --json
+python3 scripts/luna_comms_seed_demo.py --json
+python3 scripts/luna_comms_prepare_jobs.py --json
+python3 scripts/luna_comms_queue_jobs.py --json
+python3 scripts/luna_comms_send_jobs.py --dry-run --limit 50 --json
+python3 scripts/luna_comms_archive_jobs.py --json
+```
+
+Single-cycle runner:
+
+```bash
+python3 scripts/run_luna_comms_cycle.py --dry-run --limit 50 --json
+```
+
+Calendar sending is guarded behind a live flag:
+
+```bash
+python3 scripts/luna_comms_send_jobs.py --enable-calendar-live --limit 50 --json
+```
+
+Without `--enable-calendar-live`, calendar jobs remain retryable and are not sent.
+
+Portfolio demo guide and resume-ready bullet text:
+
+- `luna_comms/docs/portfolio-demo.md`
+- `luna_comms/docs/resume-snippets.md`

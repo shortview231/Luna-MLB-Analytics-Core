@@ -1,0 +1,16 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "luna_comms/schemas/notification_update_job.schema.json",
+  "title": "Luna Comms Notification Update Job Payload",
+  "type": "object",
+  "required": ["target", "title", "summary", "visibility", "source_refs"],
+  "properties": {
+    "target": {"type": "string", "enum": ["device_feed", "mobile_bridge"]},
+    "title": {"type": "string"},
+    "summary": {"type": "string"},
+    "deep_link_refs": {"type": "array", "items": {"type": "string"}},
+    "visibility": {"type": "string", "enum": ["internal"]},
+    "source_refs": {"type": "array", "items": {"type": "string"}}
+  },
+  "additionalProperties": true
+}

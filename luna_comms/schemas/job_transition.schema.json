@@ -1,0 +1,19 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "luna_comms/schemas/job_transition.schema.json",
+  "title": "Luna Comms Job Transition",
+  "type": "object",
+  "required": ["transition_id", "job_id", "from_state", "to_state", "at", "actor", "reason"],
+  "properties": {
+    "transition_id": {"type": "string"},
+    "job_id": {"type": "string"},
+    "from_state": {"type": ["string", "null"]},
+    "to_state": {"type": "string"},
+    "at": {"type": "string", "format": "date-time"},
+    "actor": {"type": "string"},
+    "reason": {"type": "string"},
+    "attempt_no": {"type": "integer"},
+    "receipt_ref": {"type": "string"}
+  },
+  "additionalProperties": true
+}
