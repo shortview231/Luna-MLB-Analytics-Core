@@ -153,6 +153,21 @@ python3 scripts/luna_comms_send_jobs.py --enable-calendar-live --limit 50 --json
 
 Without `--enable-calendar-live`, calendar jobs remain retryable and are not sent.
 
+## Repo Alignment Preflight
+
+Before one-shot commit/push automation, validate that local repo remotes match expected targets:
+
+```bash
+python3 scripts/validate_repo_alignment.py --json
+python3 scripts/validate_repo_alignment.py --strict --json
+```
+
+Config source of truth:
+
+- `luna_comms/config/repo_alignment.json`
+
+`--strict` exits non-zero when required target repos are missing locally.
+
 Portfolio demo guide and resume-ready bullet text:
 
 - `luna_comms/docs/portfolio-demo.md`
