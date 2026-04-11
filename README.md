@@ -10,6 +10,13 @@ Pipeline:
 
 `external collector -> bundle drop -> local import -> derivations -> dashboard`
 
+Publishing boundary:
+
+- `luna_ingestion` handles fetching/live collection.
+- Luna handles aggregation/schema shaping and exports bundle files.
+- This repo consumes those exported bundles and produces public-safe assets/docs.
+- Pushes remain manual.
+
 ## MVP scope
 
 Included:
@@ -34,6 +41,7 @@ pip install -r requirements.txt
 make smoke-ingest
 make smoke-derive
 make smoke-dashboard
+make refresh-public-assets
 streamlit run src/luna_mlb_analytics/dashboard/app.py
 ```
 
@@ -42,6 +50,20 @@ streamlit run src/luna_mlb_analytics/dashboard/app.py
 - Sample bundle: `data/fixtures/bundles/sample_boxscore_bundle.json`
 - Expected smoke output baseline: `data/fixtures/expected/expected_summary.json`
 - Unit/integration tests validate schema, ingestion, and derivation outputs.
+
+## Manual public asset refresh (no autopush)
+
+Generate landing-page-friendly images from the latest Luna-exported bundle:
+
+```bash
+make refresh-public-assets BUNDLE=/path/to/luna_exported_bundle.json
+```
+
+Outputs land in `docs/proof/`:
+- `standings_latest.png`
+- `player_stats_latest.png`
+- date-stamped copies (`*_YYYY-MM-DD.png`)
+- `latest.json` metadata
 
 ## Documentation
 

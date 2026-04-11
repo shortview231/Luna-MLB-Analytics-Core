@@ -21,3 +21,6 @@ smoke-derive:
 
 smoke-dashboard:
 	PYTHONPATH=src $(PYTHON) scripts/smoke_run.py --db $(DB)
+
+refresh-public-assets:
+	PYTHONPATH=src $(PYTHON) scripts/refresh_public_assets.py --bundle $(BUNDLE) --output-dir docs/proof
