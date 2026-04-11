@@ -1,0 +1,30 @@
+{
+  "bundle_id": "bundle-2026-04-10-sample",
+  "generated_at": "2026-04-10T09:00:00Z",
+  "games": [
+    {
+      "game_id": "g-1001",
+      "game_date": "2026-04-08",
+      "home_team": "CHC",
+      "away_team": "STL",
+      "home_runs": 6,
+      "away_runs": 3,
+      "players": [
+        {"player_id": "p1", "player_name": "Alex Reed", "team": "CHC", "at_bats": 4, "hits": 2, "home_runs": 1, "rbi": 3},
+        {"player_id": "p2", "player_name": "Nate Cole", "team": "STL", "at_bats": 4, "hits": 1, "home_runs": 0, "rbi": 1}
+      ]
+    },
+    {
+      "game_id": "g-1002",
+      "game_date": "2026-04-08",
+      "home_team": "MIL",
+      "away_team": "CIN",
+      "home_runs": 2,
+      "away_runs": 5,
+      "players": [
+        {"player_id": "p3", "player_name": "Jules Park", "team": "MIL", "at_bats": 4, "hits": 1, "home_runs": 0, "rbi": 1},
+        {"player_id": "p4", "player_name": "Ryan Holt", "team": "CIN", "at_bats": 5, "hits": 3, "home_runs": 1, "rbi": 3}
+      ]
+    }
+  ]
+}
