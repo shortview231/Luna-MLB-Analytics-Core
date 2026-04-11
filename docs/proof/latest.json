@@ -1,5 +1,5 @@
 {
-  "updated_at": "2026-04-10T21:00:31",
+  "updated_at": "2026-04-10T21:07:28",
   "bundle_source": "data/fixtures/bundles/sample_boxscore_bundle.json",
   "bundle_id": "bundle-2026-04-10-sample",
   "bundle_generated_at": "2026-04-10T09:00:00Z",
@@ -10,7 +10,10 @@
   "files": {
     "standings_latest": "standings_latest.png",
     "players_latest": "player_stats_latest.png",
+    "fun_graph_latest": "fun_graph_latest.png",
     "standings_dated": "standings_2026-04-10.png",
-    "players_dated": "player_stats_2026-04-10.png"
-  }
+    "players_dated": "player_stats_2026-04-10.png",
+    "fun_graph_dated": "fun_graph_2026-04-10.png"
+  },
+  "fun_graph_mode": "team_run_diff"
 }

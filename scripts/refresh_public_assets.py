@@ -2,8 +2,10 @@
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import os
+import random
 from collections import defaultdict
 from datetime import datetime
 from pathlib import Path
@@ -136,6 +138,65 @@ def render_table_image(rows: list[dict], title: str, subtitle: str, output_path:
     plt.close(fig)
 
 
+def render_fun_graph(
+    standings_rows: list[dict], player_rows: list[dict], stamp_date: str, output_path: Path
+) -> str:
+    seed = int(hashlib.sha256(stamp_date.encode("utf-8")).hexdigest()[:8], 16)
+    rng = random.Random(seed)
+    mode = rng.choice(["team_win_pct", "team_run_diff", "player_avg", "player_hr_rbi"])
+
+    fig, ax = plt.subplots(figsize=(11.5, 5.2))
+    fig.patch.set_facecolor("#0b0d10")
+    ax.set_facecolor("#0b0d10")
+    ax.tick_params(colors="#d1d5db")
+    for spine in ax.spines.values():
+        spine.set_color("#374151")
+
+    title = "MLB Fun Graph of the Day"
+    subtitle = f"Auto-selected daily view for {stamp_date}"
+
+    if mode == "team_win_pct":
+        teams = standings_rows[:10]
+        labels = [t["Team"] for t in teams]
+        vals = [float(t["Win%"]) for t in teams]
+        ax.bar(labels, vals, color="#38bdf8")
+        ax.set_ylim(0, 1)
+        ax.set_ylabel("Win %", color="#e5e7eb")
+        subtitle += " • Top teams by win percentage"
+    elif mode == "team_run_diff":
+        teams = sorted(standings_rows, key=lambda r: -r["RD"])[:10]
+        labels = [t["Team"] for t in teams]
+        vals = [t["RD"] for t in teams]
+        colors = ["#22c55e" if v >= 0 else "#ef4444" for v in vals]
+        ax.bar(labels, vals, color=colors)
+        ax.axhline(0, color="#9ca3af", linewidth=0.9)
+        ax.set_ylabel("Run Differential", color="#e5e7eb")
+        subtitle += " • Top run differential snapshot"
+    elif mode == "player_avg":
+        players = player_rows[:10]
+        labels = [p["Player"] for p in players]
+        vals = [float(p["AVG"]) for p in players]
+        ax.barh(labels, vals, color="#34d399")
+        ax.set_xlim(0, max(0.35, max(vals, default=0.0) + 0.05))
+        ax.set_xlabel("Batting Average", color="#e5e7eb")
+        subtitle += " • Player batting average leaders"
+    else:
+        players = player_rows[:10]
+        labels = [p["Player"] for p in players]
+        vals = [int(p["HR"]) + int(p["RBI"]) for p in players]
+        ax.barh(labels, vals, color="#f59e0b")
+        ax.set_xlabel("HR + RBI", color="#e5e7eb")
+        subtitle += " • Player power-production mix"
+
+    ax.set_title(title, color="#f8fafc", fontsize=17, fontweight="bold", pad=14)
+    fig.text(0.125, 0.92, subtitle, color="#9ca3af", fontsize=10)
+    fig.tight_layout()
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    fig.savefig(output_path, dpi=180)
+    plt.close(fig)
+    return mode
+
+
 def resolve_stamp_date(bundle: dict) -> str:
     raw = str(bundle.get("generated_at", "")).strip()
     if not raw:
@@ -156,6 +217,7 @@ def write_metadata(
     stamp_date: str,
     standings_rows: list[dict],
     players_rows: list[dict],
+    fun_graph_mode: str,
 ) -> None:
     payload = {
         "updated_at": datetime.now().isoformat(timespec="seconds"),
@@ -169,9 +231,12 @@ def write_metadata(
         "files": {
             "standings_latest": "standings_latest.png",
             "players_latest": "player_stats_latest.png",
+            "fun_graph_latest": "fun_graph_latest.png",
             "standings_dated": f"standings_{stamp_date}.png",
             "players_dated": f"player_stats_{stamp_date}.png",
+            "fun_graph_dated": f"fun_graph_{stamp_date}.png",
         },
+        "fun_graph_mode": fun_graph_mode,
     }
     (output_dir / "latest.json").write_text(json.dumps(payload, indent=2), encoding="utf-8")
 
@@ -215,14 +280,26 @@ def main() -> None:
     players_latest = output_dir / "player_stats_latest.png"
     standings_dated = output_dir / f"standings_{stamp_date}.png"
     players_dated = output_dir / f"player_stats_{stamp_date}.png"
+    fun_graph_latest = output_dir / "fun_graph_latest.png"
+    fun_graph_dated = output_dir / f"fun_graph_{stamp_date}.png"
 
     render_table_image(standings_rows, "MLB Standings Window", subtitle, standings_latest)
     render_table_image(player_rows, "MLB Player Stats Window", subtitle, players_latest)
+    fun_graph_mode = render_fun_graph(standings_rows, player_rows, stamp_date, fun_graph_latest)
 
     standings_dated.write_bytes(standings_latest.read_bytes())
     players_dated.write_bytes(players_latest.read_bytes())
+    fun_graph_dated.write_bytes(fun_graph_latest.read_bytes())
 
-    write_metadata(output_dir, bundle_path, bundle, stamp_date, standings_rows, player_rows)
+    write_metadata(
+        output_dir,
+        bundle_path,
+        bundle,
+        stamp_date,
+        standings_rows,
+        player_rows,
+        fun_graph_mode,
+    )
 
     print(
         json.dumps(
@@ -230,8 +307,10 @@ def main() -> None:
                 "output_dir": str(output_dir),
                 "standings_latest": str(standings_latest),
                 "players_latest": str(players_latest),
+                "fun_graph_latest": str(fun_graph_latest),
                 "standings_dated": str(standings_dated),
                 "players_dated": str(players_dated),
+                "fun_graph_dated": str(fun_graph_dated),
                 "latest_json": str(output_dir / "latest.json"),
             },
             indent=2,
