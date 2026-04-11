@@ -1,5 +1,13 @@
-.codex
+.venv/
 __pycache__/
 *.pyc
-repos/*
-!repos/.gitkeep
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.DS_Store
+*.db
+*.sqlite
+*.sqlite3
+data/raw/
+data/cache/
+artifacts/

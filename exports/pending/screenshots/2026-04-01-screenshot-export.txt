@@ -1,7 +1,0 @@
-Placeholder screenshot export for Phase 1.
-
-Intended crops:
-- dev section
-- career section
-
-This file stands in for future cropped image assets while the staging and approval pipeline is being established.

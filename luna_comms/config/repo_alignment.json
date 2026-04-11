@@ -1,7 +1,0 @@
-{
-  "root_repo_origin": "https://github.com/shortview231/Luna_Export.git",
-  "target_repo_origins": {
-    "repos/Luna_Comms": "https://github.com/shortview231/Luna_Comms.git",
-    "repos/shortview231.github.io": "https://github.com/shortview231/shortview231.github.io.git"
-  }
-}
