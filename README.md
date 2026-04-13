@@ -8,13 +8,13 @@ This project demonstrates a practical analytics architecture where data collecti
 
 Pipeline:
 
-`external collector -> bundle drop -> local import -> derivations -> dashboard`
+`external collector -> inbox bundle drop -> receiver import -> derivations -> dashboard`
 
 Publishing boundary:
 
 - `luna_ingestion` handles fetching/live collection.
-- Luna handles aggregation/schema shaping and exports bundle files.
-- This repo consumes those exported bundles and produces public-safe assets/docs.
+- Luna is code/design-focused and not in the MLB data path.
+- This repo consumes bundles pushed directly from luna_ingestion and produces public-safe assets/docs.
 - Pushes remain manual.
 
 ## MVP scope
@@ -41,6 +41,7 @@ pip install -r requirements.txt
 make smoke-ingest
 make smoke-derive
 make smoke-dashboard
+make receive-inbox
 make refresh-public-assets
 streamlit run src/luna_mlb_analytics/dashboard/app.py
 ```
@@ -53,10 +54,10 @@ streamlit run src/luna_mlb_analytics/dashboard/app.py
 
 ## Manual public asset refresh (no autopush)
 
-Generate landing-page-friendly images from the latest Luna-exported bundle:
+Generate landing-page-friendly images from the latest ingested bundle:
 
 ```bash
-make refresh-public-assets BUNDLE=/path/to/luna_exported_bundle.json
+make refresh-public-assets BUNDLE=/path/to/bundle.json
 ```
 
 Outputs land in `docs/proof/`:
@@ -69,6 +70,8 @@ Outputs land in `docs/proof/`:
 
 - `docs/architecture.md`
 - `docs/data-model.md`
+- `docs/ingestion/luna_bundle_spec.md`
+- `docs/ingestion/receiver-workflow.md`
 - `docs/offline-ingestion-flow.md`
 - `docs/local-runbook.md`
 - `docs/mvp-vs-production.md`

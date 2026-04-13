@@ -10,13 +10,16 @@
 
 ## Data flow
 
-1. Collector exports a bundle file.
-2. `scripts/run_ingest.py` validates and imports bundle into local DB.
-3. `scripts/run_derivations.py` refreshes derived stats.
-4. Dashboard reads `team_stats` and `player_stats`.
+1. Collector exports a bundle and pushes directly to this repo inbox.
+2. `scripts/receive_mlb_inbox.py` scans inbox, validates bundle checksums, and imports new bundle IDs into local DB.
+3. Receiver runs derivations and atomically moves bundle to archive.
+4. Failed bundles move to quarantine with reason metadata.
+5. Dashboard reads `team_stats` and `player_stats`.
 
 ## Design choices
 
 - Offline-first guarantees operability without live network dependencies.
 - SQLite keeps environment setup simple for local reproducibility.
 - Idempotent import ledger prevents accidental duplicate bundle application.
+- Receiver lock file prevents overlapping local runs.
+- JSONL receiver logs provide low-ceremony operational visibility.

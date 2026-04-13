@@ -8,8 +8,13 @@ from luna_mlb_analytics.ingestion.importer import import_bundle
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="Import an offline MLB bundle into local sqlite.")
-    parser.add_argument("--bundle", required=True, help="Path to bundle JSON")
+    parser = argparse.ArgumentParser(
+        description=(
+            "Import an offline MLB bundle (JSON file or bundle directory) "
+            "into local sqlite."
+        )
+    )
+    parser.add_argument("--bundle", required=True, help="Path to bundle JSON or bundle directory")
     parser.add_argument("--db", default="luna_mlb.sqlite", help="Path to sqlite DB")
     args = parser.parse_args()
 

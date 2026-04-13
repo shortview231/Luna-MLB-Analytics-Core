@@ -2,7 +2,7 @@ PYTHON ?= python3
 DB ?= luna_mlb.sqlite
 BUNDLE ?= data/fixtures/bundles/sample_boxscore_bundle.json
 
-.PHONY: install lint test smoke-ingest smoke-derive smoke-dashboard
+.PHONY: install lint test smoke-ingest smoke-derive smoke-dashboard receive-inbox
 
 install:
 	$(PYTHON) -m pip install -r requirements.txt
@@ -24,3 +24,6 @@ smoke-dashboard:
 
 refresh-public-assets:
 	PYTHONPATH=src $(PYTHON) scripts/refresh_public_assets.py --bundle $(BUNDLE) --output-dir docs/proof
+
+receive-inbox:
+	PYTHONPATH=src $(PYTHON) scripts/receive_mlb_inbox.py --db $(DB)
