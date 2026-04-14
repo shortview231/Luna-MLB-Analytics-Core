@@ -49,6 +49,24 @@ def initialize_schema(conn: sqlite3.Connection) -> None:
             FOREIGN KEY(game_id) REFERENCES games(game_id)
         );
 
+        CREATE TABLE IF NOT EXISTS game_pitchers (
+            game_id TEXT NOT NULL,
+            player_id TEXT NOT NULL,
+            player_name TEXT NOT NULL,
+            team TEXT NOT NULL,
+            ip_outs INTEGER NOT NULL,
+            h_allowed INTEGER NOT NULL,
+            er INTEGER NOT NULL,
+            bb_allowed INTEGER NOT NULL,
+            so_pitched INTEGER NOT NULL,
+            hr_allowed INTEGER NOT NULL,
+            pitches INTEGER NOT NULL,
+            strikes INTEGER NOT NULL,
+            era_game REAL,
+            PRIMARY KEY(game_id, player_id),
+            FOREIGN KEY(game_id) REFERENCES games(game_id)
+        );
+
         CREATE TABLE IF NOT EXISTS player_stats (
             player_id TEXT PRIMARY KEY,
             player_name TEXT NOT NULL,
@@ -58,6 +76,21 @@ def initialize_schema(conn: sqlite3.Connection) -> None:
             home_runs INTEGER NOT NULL,
             rbi INTEGER NOT NULL,
             batting_avg REAL NOT NULL
+        );
+
+        CREATE TABLE IF NOT EXISTS player_pitching_stats (
+            player_id TEXT PRIMARY KEY,
+            player_name TEXT NOT NULL,
+            team TEXT NOT NULL,
+            ip_outs INTEGER NOT NULL,
+            h_allowed INTEGER NOT NULL,
+            er INTEGER NOT NULL,
+            bb_allowed INTEGER NOT NULL,
+            so_pitched INTEGER NOT NULL,
+            hr_allowed INTEGER NOT NULL,
+            pitches INTEGER NOT NULL,
+            strikes INTEGER NOT NULL,
+            era REAL
         );
 
         CREATE TABLE IF NOT EXISTS import_ledger (

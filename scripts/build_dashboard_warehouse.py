@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 import sqlite3
-from datetime import datetime, UTC
+from datetime import UTC, datetime
 from pathlib import Path
 
 import duckdb
@@ -320,11 +320,15 @@ def build() -> None:
         )
 
     if team_rows:
-        dd.executemany("INSERT INTO team_game_results VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)", team_rows)
+        dd.executemany(
+            "INSERT INTO team_game_results VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            team_rows,
+        )
 
     batting_rows = sq.execute(
         """
-        SELECT gp.game_id, gp.player_id, gp.player_name, gp.team, gp.at_bats, gp.hits, gp.home_runs, gp.rbi
+        SELECT gp.game_id, gp.player_id, gp.player_name, gp.team, gp.at_bats,
+               gp.hits, gp.home_runs, gp.rbi
         FROM game_players gp
         JOIN games g ON g.game_id = gp.game_id
         ORDER BY g.game_date, gp.game_id, gp.player_name
@@ -377,8 +381,55 @@ def build() -> None:
 
     if b_inserts:
         dd.executemany(
-            "INSERT INTO player_game_batting VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            (
+                "INSERT INTO player_game_batting VALUES "
+                "(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
+            ),
             b_inserts,
+        )
+
+    pitching_rows = sq.execute(
+        """
+        SELECT gp.game_id, gp.player_id, gp.player_name, gp.team, gp.ip_outs, gp.h_allowed, gp.er,
+               gp.bb_allowed, gp.so_pitched, gp.hr_allowed, gp.pitches, gp.strikes, gp.era_game
+        FROM game_pitchers gp
+        JOIN games g ON g.game_id = gp.game_id
+        ORDER BY g.game_date, gp.game_id, gp.player_name
+        """
+    ).fetchall()
+
+    p_inserts = []
+    for r in pitching_rows:
+        try:
+            game_pk = int(str(r["game_id"]).replace("g-", ""))
+            player_id = int(str(r["player_id"]))
+        except ValueError:
+            continue
+        team_id, _team_name = _team_info(r["team"])
+        p_inserts.append(
+            [
+                game_pk,
+                team_id,
+                player_id,
+                r["player_name"],
+                int(r["ip_outs"] or 0),
+                int(r["h_allowed"] or 0),
+                int(r["er"] or 0),
+                int(r["bb_allowed"] or 0),
+                int(r["so_pitched"] or 0),
+                int(r["hr_allowed"] or 0),
+                int(r["pitches"] or 0),
+                int(r["strikes"] or 0),
+                None,
+                float(r["era_game"] or 0.0),
+                datetime.now(UTC).isoformat(),
+            ]
+        )
+
+    if p_inserts:
+        dd.executemany(
+            "INSERT INTO player_game_pitching VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            p_inserts,
         )
 
     dd.execute(

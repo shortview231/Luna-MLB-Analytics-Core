@@ -76,6 +76,60 @@ def _extract_players(
     return rows
 
 
+def _ip_to_outs(value: Any) -> int:
+    innings = str(value or "").strip()
+    if not innings:
+        return 0
+    if "." not in innings:
+        return _to_int(innings, 0) * 3
+    whole_str, frac_str = innings.split(".", 1)
+    whole = _to_int(whole_str, 0)
+    frac = _to_int(frac_str, 0)
+    frac = max(0, min(frac, 2))
+    return (whole * 3) + frac
+
+
+def _extract_pitchers(
+    game_id: str, team_block: dict[str, Any], team_code: str
+) -> list[dict[str, Any]]:
+    players = team_block.get("players", {}) if isinstance(team_block, dict) else {}
+    if not isinstance(players, dict):
+        return []
+
+    rows: list[dict[str, Any]] = []
+    for value in players.values():
+        if not isinstance(value, dict):
+            continue
+        person = value.get("person", {}) if isinstance(value.get("person"), dict) else {}
+        stats = value.get("stats", {}) if isinstance(value.get("stats"), dict) else {}
+        pitching = stats.get("pitching", {}) if isinstance(stats.get("pitching"), dict) else {}
+        if not pitching:
+            continue
+
+        player_id = str(person.get("id") or "").strip()
+        if not player_id:
+            continue
+
+        rows.append(
+            {
+                "game_id": game_id,
+                "player_id": player_id,
+                "player_name": str(person.get("fullName") or "Unknown").strip() or "Unknown",
+                "team": team_code,
+                "ip_outs": _ip_to_outs(pitching.get("inningsPitched")),
+                "h_allowed": _to_int(pitching.get("hits"), 0),
+                "er": _to_int(pitching.get("earnedRuns"), 0),
+                "bb_allowed": _to_int(pitching.get("baseOnBalls"), 0),
+                "so_pitched": _to_int(pitching.get("strikeOuts"), 0),
+                "hr_allowed": _to_int(pitching.get("homeRuns"), 0),
+                "pitches": _to_int(pitching.get("pitchesThrown"), 0),
+                "strikes": _to_int(pitching.get("strikes"), 0),
+                "era_game": float(pitching.get("era") or 0.0),
+            }
+        )
+    return rows
+
+
 def _verify_checksum(file_path: Path, expected_sha: str) -> None:
     actual = hashlib.sha256(file_path.read_bytes()).hexdigest()
     if actual != expected_sha:
@@ -172,6 +226,9 @@ def _load_folder_bundle(bundle_dir: Path) -> dict[str, Any]:
         players = _extract_players(game_id, home_block, home_team) + _extract_players(
             game_id, away_block, away_team
         )
+        pitchers = _extract_pitchers(game_id, home_block, home_team) + _extract_pitchers(
+            game_id, away_block, away_team
+        )
 
         converted_games.append(
             {
@@ -182,6 +239,7 @@ def _load_folder_bundle(bundle_dir: Path) -> dict[str, Any]:
                 "home_runs": home_runs,
                 "away_runs": away_runs,
                 "players": players,
+                "pitchers": pitchers,
             }
         )
 
@@ -232,7 +290,7 @@ def import_bundle(bundle_path: str | Path, db_path: str | Path) -> dict:
     if rows:
         conn.executemany(
             """
-            INSERT INTO games(
+            INSERT OR REPLACE INTO games(
                 game_id, game_date, home_team, away_team,
                 home_runs, away_runs, source_bundle_id, imported_at
             )
@@ -242,6 +300,7 @@ def import_bundle(bundle_path: str | Path, db_path: str | Path) -> dict:
         )
 
     player_rows = []
+    pitcher_rows = []
     for g in bundle["games"]:
         for p in g["players"]:
             player_rows.append(
@@ -256,15 +315,44 @@ def import_bundle(bundle_path: str | Path, db_path: str | Path) -> dict:
                     int(p["rbi"]),
                 )
             )
+        for p in g.get("pitchers", []):
+            pitcher_rows.append(
+                (
+                    g["game_id"],
+                    p["player_id"],
+                    p["player_name"],
+                    p["team"],
+                    int(p["ip_outs"]),
+                    int(p["h_allowed"]),
+                    int(p["er"]),
+                    int(p["bb_allowed"]),
+                    int(p["so_pitched"]),
+                    int(p["hr_allowed"]),
+                    int(p["pitches"]),
+                    int(p["strikes"]),
+                    float(p["era_game"]),
+                )
+            )
     if player_rows:
         conn.executemany(
             """
-            INSERT INTO game_players(
+            INSERT OR REPLACE INTO game_players(
                 game_id, player_id, player_name, team, at_bats, hits, home_runs, rbi
             )
             VALUES(?, ?, ?, ?, ?, ?, ?, ?)
             """,
             player_rows,
+        )
+    if pitcher_rows:
+        conn.executemany(
+            """
+            INSERT OR REPLACE INTO game_pitchers(
+                game_id, player_id, player_name, team, ip_outs, h_allowed, er,
+                bb_allowed, so_pitched, hr_allowed, pitches, strikes, era_game
+            )
+            VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+            pitcher_rows,
         )
 
     conn.execute(
@@ -278,5 +366,6 @@ def import_bundle(bundle_path: str | Path, db_path: str | Path) -> dict:
         "bundle_id": bundle["bundle_id"],
         "inserted_games": len(rows),
         "inserted_player_lines": len(player_rows),
+        "inserted_pitching_lines": len(pitcher_rows),
         "status": "imported",
     }

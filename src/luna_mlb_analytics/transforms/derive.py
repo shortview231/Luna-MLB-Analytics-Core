@@ -2,11 +2,12 @@ from __future__ import annotations
 
 from collections import defaultdict
 
-from luna_mlb_analytics.storage.db import connect
+from luna_mlb_analytics.storage.db import connect, initialize_schema
 
 
 def derive_team_and_player_stats(db_path: str) -> dict:
     conn = connect(db_path)
+    initialize_schema(conn)
 
     games = conn.execute("SELECT * FROM games ORDER BY game_date, game_id").fetchall()
     if not games:
@@ -104,7 +105,76 @@ def derive_team_and_player_stats(db_path: str) -> dict:
         player_rows,
     )
 
+    pitching_rollup = defaultdict(
+        lambda: {
+            "name": "",
+            "team": "",
+            "ip_outs": 0,
+            "h_allowed": 0,
+            "er": 0,
+            "bb_allowed": 0,
+            "so_pitched": 0,
+            "hr_allowed": 0,
+            "pitches": 0,
+            "strikes": 0,
+        }
+    )
+    for row in conn.execute(
+        """
+        SELECT player_id, player_name, team, ip_outs, h_allowed, er, bb_allowed,
+               so_pitched, hr_allowed, pitches, strikes
+        FROM game_pitchers
+        """
+    ):
+        pid = row["player_id"]
+        pitching_rollup[pid]["name"] = row["player_name"]
+        pitching_rollup[pid]["team"] = row["team"]
+        pitching_rollup[pid]["ip_outs"] += row["ip_outs"]
+        pitching_rollup[pid]["h_allowed"] += row["h_allowed"]
+        pitching_rollup[pid]["er"] += row["er"]
+        pitching_rollup[pid]["bb_allowed"] += row["bb_allowed"]
+        pitching_rollup[pid]["so_pitched"] += row["so_pitched"]
+        pitching_rollup[pid]["hr_allowed"] += row["hr_allowed"]
+        pitching_rollup[pid]["pitches"] += row["pitches"]
+        pitching_rollup[pid]["strikes"] += row["strikes"]
+
+    conn.execute("DELETE FROM player_pitching_stats")
+    pitching_rows = []
+    for pid, stats in sorted(pitching_rollup.items()):
+        era = ((stats["er"] * 27.0) / stats["ip_outs"]) if stats["ip_outs"] else None
+        pitching_rows.append(
+            (
+                pid,
+                stats["name"],
+                stats["team"],
+                stats["ip_outs"],
+                stats["h_allowed"],
+                stats["er"],
+                stats["bb_allowed"],
+                stats["so_pitched"],
+                stats["hr_allowed"],
+                stats["pitches"],
+                stats["strikes"],
+                round(era, 3) if era is not None else None,
+            )
+        )
+    if pitching_rows:
+        conn.executemany(
+            """
+            INSERT INTO player_pitching_stats(
+                player_id, player_name, team, ip_outs, h_allowed, er, bb_allowed,
+                so_pitched, hr_allowed, pitches, strikes, era
+            )
+            VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+            pitching_rows,
+        )
+
     conn.commit()
     conn.close()
 
-    return {"teams_upserted": len(team_rows), "players_upserted": len(player_rows)}
+    return {
+        "teams_upserted": len(team_rows),
+        "players_upserted": len(player_rows),
+        "pitchers_upserted": len(pitching_rows),
+    }
