@@ -77,6 +77,48 @@ def initialize_schema(conn: sqlite3.Connection) -> None:
             FOREIGN KEY(game_id) REFERENCES games(game_id)
         );
 
+        CREATE TABLE IF NOT EXISTS game_team_action_lines (
+            game_id TEXT NOT NULL,
+            team TEXT NOT NULL,
+            section_title TEXT,
+            label TEXT NOT NULL,
+            value TEXT NOT NULL,
+            sort_order INTEGER NOT NULL DEFAULT 0,
+            PRIMARY KEY(game_id, team, sort_order, label),
+            FOREIGN KEY(game_id) REFERENCES games(game_id)
+        );
+
+        CREATE TABLE IF NOT EXISTS game_team_notes (
+            game_id TEXT NOT NULL,
+            team TEXT NOT NULL,
+            note_key TEXT,
+            note_value TEXT NOT NULL,
+            sort_order INTEGER NOT NULL DEFAULT 0,
+            PRIMARY KEY(game_id, team, sort_order),
+            FOREIGN KEY(game_id) REFERENCES games(game_id)
+        );
+
+        CREATE TABLE IF NOT EXISTS game_player_summaries (
+            game_id TEXT NOT NULL,
+            team TEXT NOT NULL,
+            player_id TEXT NOT NULL,
+            player_name TEXT NOT NULL,
+            batting_summary TEXT,
+            pitching_summary TEXT,
+            summary_order INTEGER NOT NULL DEFAULT 0,
+            PRIMARY KEY(game_id, team, player_id),
+            FOREIGN KEY(game_id) REFERENCES games(game_id)
+        );
+
+        CREATE TABLE IF NOT EXISTS game_global_notes (
+            game_id TEXT NOT NULL,
+            label TEXT NOT NULL,
+            value TEXT NOT NULL,
+            sort_order INTEGER NOT NULL DEFAULT 0,
+            PRIMARY KEY(game_id, sort_order),
+            FOREIGN KEY(game_id) REFERENCES games(game_id)
+        );
+
         CREATE TABLE IF NOT EXISTS player_stats (
             player_id TEXT PRIMARY KEY,
             player_name TEXT NOT NULL,

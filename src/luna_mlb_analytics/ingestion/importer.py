@@ -140,6 +140,147 @@ def _extract_pitchers(
     return rows
 
 
+def _extract_team_action_lines(
+    game_id: str, team_block: dict[str, Any], team_code: str
+) -> list[dict[str, Any]]:
+    info_rows = team_block.get("info", []) if isinstance(team_block, dict) else []
+    if not isinstance(info_rows, list):
+        return []
+    rows: list[dict[str, Any]] = []
+    order = 0
+    for entry in info_rows:
+        if not isinstance(entry, dict):
+            continue
+        title = str(entry.get("title") or "").strip() or "INFO"
+        field_list = entry.get("fieldList", [])
+        if not isinstance(field_list, list):
+            continue
+        for field in field_list:
+            if not isinstance(field, dict):
+                continue
+            label = str(field.get("label") or "").strip()
+            value = str(field.get("value") or "").strip()
+            if not label or not value:
+                continue
+            rows.append(
+                {
+                    "game_id": game_id,
+                    "team": team_code,
+                    "section_title": title,
+                    "label": label,
+                    "value": value,
+                    "sort_order": order,
+                }
+            )
+            order += 1
+    return rows
+
+
+def _extract_team_notes(
+    game_id: str, team_block: dict[str, Any], team_code: str
+) -> list[dict[str, Any]]:
+    notes = team_block.get("note", []) if isinstance(team_block, dict) else []
+    if not isinstance(notes, list):
+        return []
+    rows: list[dict[str, Any]] = []
+    order = 0
+    for entry in notes:
+        if not isinstance(entry, dict):
+            continue
+        value = str(entry.get("value") or "").strip()
+        if not value:
+            continue
+        label = str(entry.get("label") or "").strip() or None
+        rows.append(
+            {
+                "game_id": game_id,
+                "team": team_code,
+                "note_key": label,
+                "note_value": value,
+                "sort_order": order,
+            }
+        )
+        order += 1
+    return rows
+
+
+def _extract_player_summaries(
+    game_id: str, team_block: dict[str, Any], team_code: str
+) -> list[dict[str, Any]]:
+    players = team_block.get("players", {}) if isinstance(team_block, dict) else {}
+    if not isinstance(players, dict):
+        return []
+    rows: list[dict[str, Any]] = []
+    order = 0
+    for value in players.values():
+        if not isinstance(value, dict):
+            continue
+        person = value.get("person", {}) if isinstance(value.get("person"), dict) else {}
+        stats = value.get("stats", {}) if isinstance(value.get("stats"), dict) else {}
+        batting = stats.get("batting", {}) if isinstance(stats.get("batting"), dict) else {}
+        pitching = stats.get("pitching", {}) if isinstance(stats.get("pitching"), dict) else {}
+        batting_summary = str(batting.get("summary") or "").strip()
+        pitching_summary = str(pitching.get("summary") or "").strip()
+        if not batting_summary and not pitching_summary:
+            continue
+        player_id = str(person.get("id") or "").strip()
+        if not player_id:
+            continue
+        rows.append(
+            {
+                "game_id": game_id,
+                "team": team_code,
+                "player_id": player_id,
+                "player_name": str(person.get("fullName") or "Unknown").strip() or "Unknown",
+                "batting_summary": batting_summary or None,
+                "pitching_summary": pitching_summary or None,
+                "summary_order": order,
+            }
+        )
+        order += 1
+    return rows
+
+
+def _extract_global_notes(game_id: str, boxscore: dict[str, Any]) -> list[dict[str, Any]]:
+    raw_info = boxscore.get("info", []) if isinstance(boxscore, dict) else []
+    rows: list[dict[str, Any]] = []
+    order = 0
+    if isinstance(raw_info, list):
+        for entry in raw_info:
+            if not isinstance(entry, dict):
+                continue
+            label = str(entry.get("label") or "").strip()
+            value = str(entry.get("value") or "").strip()
+            if not label or not value:
+                continue
+            rows.append(
+                {
+                    "game_id": game_id,
+                    "label": label,
+                    "value": value,
+                    "sort_order": order,
+                }
+            )
+            order += 1
+
+    pitch_notes = boxscore.get("pitchingNotes", [])
+    if isinstance(pitch_notes, list):
+        for note in pitch_notes:
+            value = str(note or "").strip()
+            if not value:
+                continue
+            rows.append(
+                {
+                    "game_id": game_id,
+                    "label": "Pitching Note",
+                    "value": value,
+                    "sort_order": order,
+                }
+            )
+            order += 1
+    return rows
+
+
 def _verify_checksum(file_path: Path, expected_sha: str) -> None:
     actual = hashlib.sha256(file_path.read_bytes()).hexdigest()
     if actual != expected_sha:
@@ -240,6 +381,14 @@ def _load_folder_bundle(bundle_dir: Path) -> dict[str, Any]:
             game_id, away_block, away_team
         )
 
+        action_lines = _extract_team_action_lines(game_id, home_block, home_team)
+        action_lines += _extract_team_action_lines(game_id, away_block, away_team)
+        team_notes = _extract_team_notes(game_id, home_block, home_team)
+        team_notes += _extract_team_notes(game_id, away_block, away_team)
+        player_summaries = _extract_player_summaries(game_id, home_block, home_team)
+        player_summaries += _extract_player_summaries(game_id, away_block, away_team)
+        global_notes = _extract_global_notes(game_id, box)
+
         converted_games.append(
             {
                 "game_id": game_id,
@@ -250,6 +399,10 @@ def _load_folder_bundle(bundle_dir: Path) -> dict[str, Any]:
                 "away_runs": away_runs,
                 "players": players,
                 "pitchers": pitchers,
+                "action_lines": action_lines,
+                "team_notes": team_notes,
+                "player_summaries": player_summaries,
+                "global_notes": global_notes,
             }
         )
 
@@ -311,6 +464,10 @@ def import_bundle(bundle_path: str | Path, db_path: str | Path) -> dict:
 
     player_rows = []
     pitcher_rows = []
+    action_rows = []
+    note_rows = []
+    player_summary_rows = []
+    global_note_rows = []
 
     def _to_int(player: dict[str, Any], key: str, default: int = 0) -> int:
         value = player.get(key, default)
@@ -366,6 +523,48 @@ def import_bundle(bundle_path: str | Path, db_path: str | Path) -> dict:
                     _to_float(p, "era_game"),
                 )
             )
+        for row in g.get("action_lines", []):
+            action_rows.append(
+                (
+                    g["game_id"],
+                    row.get("team"),
+                    row.get("section_title"),
+                    row.get("label"),
+                    row.get("value"),
+                    int(row.get("sort_order") or 0),
+                )
+            )
+        for row in g.get("team_notes", []):
+            note_rows.append(
+                (
+                    g["game_id"],
+                    row.get("team"),
+                    row.get("note_key"),
+                    row.get("note_value"),
+                    int(row.get("sort_order") or 0),
+                )
+            )
+        for row in g.get("player_summaries", []):
+            player_summary_rows.append(
+                (
+                    g["game_id"],
+                    row.get("team"),
+                    row.get("player_id"),
+                    row.get("player_name"),
+                    row.get("batting_summary"),
+                    row.get("pitching_summary"),
+                    int(row.get("summary_order") or 0),
+                )
+            )
+        for row in g.get("global_notes", []):
+            global_note_rows.append(
+                (
+                    g["game_id"],
+                    row.get("label"),
+                    row.get("value"),
+                    int(row.get("sort_order") or 0),
+                )
+            )
     if player_rows:
         conn.executemany(
             """
@@ -389,6 +588,46 @@ def import_bundle(bundle_path: str | Path, db_path: str | Path) -> dict:
             """,
             pitcher_rows,
         )
+    if action_rows:
+        conn.executemany(
+            """
+            INSERT OR REPLACE INTO game_team_action_lines(
+                game_id, team, section_title, label, value, sort_order
+            )
+            VALUES(?, ?, ?, ?, ?, ?)
+            """,
+            action_rows,
+        )
+    if note_rows:
+        conn.executemany(
+            """
+            INSERT OR REPLACE INTO game_team_notes(
+                game_id, team, note_key, note_value, sort_order
+            )
+            VALUES(?, ?, ?, ?, ?)
+            """,
+            note_rows,
+        )
+    if player_summary_rows:
+        conn.executemany(
+            """
+            INSERT OR REPLACE INTO game_player_summaries(
+                game_id, team, player_id, player_name, batting_summary, pitching_summary, summary_order
+            )
+            VALUES(?, ?, ?, ?, ?, ?, ?)
+            """,
+            player_summary_rows,
+        )
+    if global_note_rows:
+        conn.executemany(
+            """
+            INSERT OR REPLACE INTO game_global_notes(
+                game_id, label, value, sort_order
+            )
+            VALUES(?, ?, ?, ?)
+            """,
+            global_note_rows,
+        )
 
     conn.execute(
         "INSERT INTO import_ledger(bundle_id, imported_at, game_count) VALUES(?, ?, ?)",
@@ -402,5 +641,9 @@ def import_bundle(bundle_path: str | Path, db_path: str | Path) -> dict:
         "inserted_games": len(rows),
         "inserted_player_lines": len(player_rows),
         "inserted_pitching_lines": len(pitcher_rows),
+        "inserted_action_lines": len(action_rows),
+        "inserted_team_notes": len(note_rows),
+        "inserted_player_summaries": len(player_summary_rows),
+        "inserted_global_notes": len(global_note_rows),
         "status": "imported",
     }

@@ -227,6 +227,70 @@ def _open_player_modal(con: duckdb.DuckDBPyConnection, season: int, player_id: i
         }], hide_index=True, use_container_width=True)
 
 
+def _render_action_block(
+    con: duckdb.DuckDBPyConnection, game_pk: int, team_id: int, team_name: str
+) -> None:
+    st.markdown(f"#### {team_name} Action")
+    action_rows = query_rows(
+        con,
+        """
+        SELECT section_title, label, value
+        FROM game_team_action_lines
+        WHERE game_pk=? AND team_id=?
+        ORDER BY sort_order ASC
+        """,
+        [game_pk, team_id],
+    )
+    if action_rows:
+        current_section = None
+        for row in action_rows:
+            section = row.get("section_title") or "INFO"
+            if section != current_section:
+                st.caption(section)
+                current_section = section
+            st.markdown(f"- **{row.get('label')}**: {row.get('value')}")
+    else:
+        st.caption("No reported entries.")
+
+    note_rows = query_rows(
+        con,
+        """
+        SELECT note_key, note_value
+        FROM game_team_notes
+        WHERE game_pk=? AND team_id=?
+        ORDER BY sort_order ASC
+        """,
+        [game_pk, team_id],
+    )
+    if note_rows:
+        st.caption("Notes")
+        for row in note_rows:
+            key = row.get("note_key")
+            text = row.get("note_value")
+            st.markdown(f"- **{key}**: {text}" if key else f"- {text}")
+
+    summary_rows = query_rows(
+        con,
+        """
+        SELECT player_name, batting_summary, pitching_summary
+        FROM game_player_summaries
+        WHERE game_pk=? AND team_id=?
+        ORDER BY summary_order ASC, player_name ASC
+        """,
+        [game_pk, team_id],
+    )
+    if summary_rows:
+        st.caption("Player Summaries")
+        for row in summary_rows:
+            parts = []
+            if row.get("batting_summary"):
+                parts.append(str(row.get("batting_summary")))
+            if row.get("pitching_summary"):
+                parts.append(str(row.get("pitching_summary")))
+            if parts:
+                st.markdown(f"- **{row.get('player_name')}**: {' | '.join(parts)}")
+
+
 def _render_game_boxscore(
     con: duckdb.DuckDBPyConnection, season: int, game_pk: int, key_prefix: str = "box"
 ) -> None:
@@ -414,6 +478,39 @@ def _render_game_boxscore(
             sel = getattr(getattr(ev, "selection", None), "rows", [])
             if sel:
                 st.session_state["selected_player_id"] = int(pit_rows[int(sel[0])].get("player_id") or 0)
+
+    if away_team and home_team:
+        st.markdown("### Game Action")
+        left, right = st.columns(2)
+        with left:
+            _render_action_block(
+                con,
+                game_pk,
+                int(away_team["team_id"]),
+                str(away_team.get("team_name") or "Away"),
+            )
+        with right:
+            _render_action_block(
+                con,
+                game_pk,
+                int(home_team["team_id"]),
+                str(home_team.get("team_name") or "Home"),
+            )
+
+    global_notes = query_rows(
+        con,
+        """
+        SELECT label, value
+        FROM game_global_notes
+        WHERE game_pk=?
+        ORDER BY sort_order ASC
+        """,
+        [game_pk],
+    )
+    if global_notes:
+        st.markdown("### Global Game Notes")
+        for row in global_notes:
+            st.markdown(f"- **{row.get('label')}**: {row.get('value')}")
 
 
 def _render_score_card(card: dict, key: str) -> bool:

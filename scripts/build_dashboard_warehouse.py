@@ -7,6 +7,8 @@ from pathlib import Path
 
 import duckdb
 
+from luna_mlb_analytics.storage.db import initialize_schema
+
 SQLITE_DB = Path("luna_mlb.sqlite")
 DUCKDB_DB = Path("data/warehouse/mlb_core.duckdb")
 
@@ -65,12 +67,17 @@ def build() -> None:
     DUCKDB_DB.parent.mkdir(parents=True, exist_ok=True)
     sq = sqlite3.connect(str(SQLITE_DB))
     sq.row_factory = sqlite3.Row
+    initialize_schema(sq)
 
     dd = duckdb.connect(str(DUCKDB_DB))
     dd.execute("DROP TABLE IF EXISTS games")
     dd.execute("DROP TABLE IF EXISTS team_game_results")
     dd.execute("DROP TABLE IF EXISTS player_game_batting")
     dd.execute("DROP TABLE IF EXISTS player_game_pitching")
+    dd.execute("DROP TABLE IF EXISTS game_team_action_lines")
+    dd.execute("DROP TABLE IF EXISTS game_team_notes")
+    dd.execute("DROP TABLE IF EXISTS game_player_summaries")
+    dd.execute("DROP TABLE IF EXISTS game_global_notes")
     dd.execute("DROP TABLE IF EXISTS team_season_aggregates")
     dd.execute("DROP TABLE IF EXISTS player_season_aggregates")
 
@@ -167,6 +174,56 @@ def build() -> None:
           decision TEXT,
           era_game DOUBLE,
           last_ingested_at TIMESTAMP
+        )
+        """
+    )
+
+    dd.execute(
+        """
+        CREATE TABLE game_team_action_lines (
+          game_pk BIGINT,
+          team_id INTEGER,
+          section_title TEXT,
+          label TEXT,
+          value TEXT,
+          sort_order INTEGER
+        )
+        """
+    )
+
+    dd.execute(
+        """
+        CREATE TABLE game_team_notes (
+          game_pk BIGINT,
+          team_id INTEGER,
+          note_key TEXT,
+          note_value TEXT,
+          sort_order INTEGER
+        )
+        """
+    )
+
+    dd.execute(
+        """
+        CREATE TABLE game_player_summaries (
+          game_pk BIGINT,
+          team_id INTEGER,
+          player_id BIGINT,
+          player_name TEXT,
+          batting_summary TEXT,
+          pitching_summary TEXT,
+          summary_order INTEGER
+        )
+        """
+    )
+
+    dd.execute(
+        """
+        CREATE TABLE game_global_notes (
+          game_pk BIGINT,
+          label TEXT,
+          value TEXT,
+          sort_order INTEGER
         )
         """
     )
@@ -435,6 +492,111 @@ def build() -> None:
             "INSERT INTO player_game_pitching VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
             p_inserts,
         )
+
+    action_rows = sq.execute(
+        """
+        SELECT game_id, team, section_title, label, value, sort_order
+        FROM game_team_action_lines
+        ORDER BY game_id, team, sort_order
+        """
+    ).fetchall()
+    action_inserts = []
+    for r in action_rows:
+        try:
+            game_pk = int(str(r["game_id"]).replace("g-", ""))
+        except ValueError:
+            continue
+        team_id, _ = _team_info(r["team"])
+        action_inserts.append(
+            [
+                game_pk,
+                team_id,
+                r["section_title"],
+                r["label"],
+                r["value"],
+                int(r["sort_order"] or 0),
+            ]
+        )
+    if action_inserts:
+        dd.executemany(
+            "INSERT INTO game_team_action_lines VALUES (?, ?, ?, ?, ?, ?)",
+            action_inserts,
+        )
+
+    note_rows = sq.execute(
+        """
+        SELECT game_id, team, note_key, note_value, sort_order
+        FROM game_team_notes
+        ORDER BY game_id, team, sort_order
+        """
+    ).fetchall()
+    note_inserts = []
+    for r in note_rows:
+        try:
+            game_pk = int(str(r["game_id"]).replace("g-", ""))
+        except ValueError:
+            continue
+        team_id, _ = _team_info(r["team"])
+        note_inserts.append(
+            [
+                game_pk,
+                team_id,
+                r["note_key"],
+                r["note_value"],
+                int(r["sort_order"] or 0),
+            ]
+        )
+    if note_inserts:
+        dd.executemany("INSERT INTO game_team_notes VALUES (?, ?, ?, ?, ?)", note_inserts)
+
+    summary_rows = sq.execute(
+        """
+        SELECT game_id, team, player_id, player_name, batting_summary, pitching_summary, summary_order
+        FROM game_player_summaries
+        ORDER BY game_id, team, summary_order
+        """
+    ).fetchall()
+    summary_inserts = []
+    for r in summary_rows:
+        try:
+            game_pk = int(str(r["game_id"]).replace("g-", ""))
+            player_id = int(str(r["player_id"]))
+        except ValueError:
+            continue
+        team_id, _ = _team_info(r["team"])
+        summary_inserts.append(
+            [
+                game_pk,
+                team_id,
+                player_id,
+                r["player_name"],
+                r["batting_summary"],
+                r["pitching_summary"],
+                int(r["summary_order"] or 0),
+            ]
+        )
+    if summary_inserts:
+        dd.executemany(
+            "INSERT INTO game_player_summaries VALUES (?, ?, ?, ?, ?, ?, ?)",
+            summary_inserts,
+        )
+
+    global_rows = sq.execute(
+        """
+        SELECT game_id, label, value, sort_order
+        FROM game_global_notes
+        ORDER BY game_id, sort_order
+        """
+    ).fetchall()
+    global_inserts = []
+    for r in global_rows:
+        try:
+            game_pk = int(str(r["game_id"]).replace("g-", ""))
+        except ValueError:
+            continue
+        global_inserts.append([game_pk, r["label"], r["value"], int(r["sort_order"] or 0)])
+    if global_inserts:
+        dd.executemany("INSERT INTO game_global_notes VALUES (?, ?, ?, ?)", global_inserts)
 
     dd.execute(
         """

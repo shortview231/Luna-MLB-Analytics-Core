@@ -48,6 +48,16 @@ def test_import_folder_bundle(tmp_path: Path) -> None:
                         "home": {
                             "team": {"abbreviation": "CHC"},
                             "teamStats": {"batting": {"runs": 5}},
+                            "info": [
+                                {
+                                    "title": "BATTING",
+                                    "fieldList": [
+                                        {"label": "HR", "value": "Suzuki (1)."},
+                                        {"label": "RBI", "value": "Suzuki 2 (2)."},
+                                    ],
+                                }
+                            ],
+                            "note": [{"label": "a", "value": "Pinch-hit in the 8th."}],
                             "players": {
                                 "ID1": {
                                     "person": {"id": 1, "fullName": "Alex Reed"},
@@ -57,6 +67,7 @@ def test_import_folder_bundle(tmp_path: Path) -> None:
                                             "hits": 2,
                                             "homeRuns": 1,
                                             "rbi": 3,
+                                            "summary": "2-4 | HR, 3 RBI",
                                         }
                                     },
                                 }
@@ -65,6 +76,14 @@ def test_import_folder_bundle(tmp_path: Path) -> None:
                         "away": {
                             "team": {"abbreviation": "STL"},
                             "teamStats": {"batting": {"runs": 3}},
+                            "info": [
+                                {
+                                    "title": "BATTING",
+                                    "fieldList": [
+                                        {"label": "TB", "value": "Walker 4; Contreras 2."},
+                                    ],
+                                }
+                            ],
                             "players": {
                                 "ID2": {
                                     "person": {"id": 2, "fullName": "Nate Cole"},
@@ -74,12 +93,17 @@ def test_import_folder_bundle(tmp_path: Path) -> None:
                                             "hits": 1,
                                             "homeRuns": 0,
                                             "rbi": 1,
+                                            "summary": "1-4 | RBI",
                                         }
                                     },
                                 }
                             },
                         },
                     }
+                    ,
+                    "info": [
+                        {"label": "Weather", "value": "59 degrees, Clear."},
+                    ],
                 },
             }
         ],
@@ -107,11 +131,19 @@ def test_import_folder_bundle(tmp_path: Path) -> None:
     assert result["status"] == "imported"
     assert result["inserted_games"] == 1
     assert result["inserted_player_lines"] == 2
+    assert result["inserted_action_lines"] == 3
+    assert result["inserted_team_notes"] == 1
+    assert result["inserted_player_summaries"] == 2
+    assert result["inserted_global_notes"] == 1
 
     conn = connect(db)
     row = conn.execute(
         "SELECT game_id, home_team, away_team, home_runs, away_runs FROM games"
     ).fetchone()
+    action_count = conn.execute("SELECT COUNT(*) AS c FROM game_team_action_lines").fetchone()["c"]
+    note_count = conn.execute("SELECT COUNT(*) AS c FROM game_team_notes").fetchone()["c"]
+    summary_count = conn.execute("SELECT COUNT(*) AS c FROM game_player_summaries").fetchone()["c"]
+    global_count = conn.execute("SELECT COUNT(*) AS c FROM game_global_notes").fetchone()["c"]
     conn.close()
     assert dict(row) == {
         "game_id": "123",
@@ -120,6 +152,10 @@ def test_import_folder_bundle(tmp_path: Path) -> None:
         "home_runs": 5,
         "away_runs": 3,
     }
+    assert action_count == 3
+    assert note_count == 1
+    assert summary_count == 2
+    assert global_count == 1
 
 
 def test_import_folder_bundle_rejects_checksum_mismatch(tmp_path: Path) -> None:
