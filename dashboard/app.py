@@ -283,10 +283,66 @@ def _render_game_boxscore(
             continue
         team_id = int(team["team_id"])
         st.markdown(f"### {'Away' if not team.get('is_home') else 'Home'}: {team.get('team_name')}")
+        team_batting_totals = query_rows(
+            con,
+            """
+            SELECT
+              SUM(ab) AS ab,
+              SUM(r) AS r,
+              SUM(h) AS h,
+              SUM(rbi) AS rbi,
+              SUM(bb) AS bb,
+              SUM(so) AS so,
+              SUM(hr) AS hr,
+              SUM(doubles) AS doubles,
+              SUM(triples) AS triples,
+              SUM(sb) AS sb,
+              SUM(cs) AS cs,
+              SUM(left_on_base) AS lob
+            FROM player_game_batting
+            WHERE game_pk=? AND team_id=?
+            """,
+            [game_pk, team_id],
+        )
+        team_pitching_totals = query_rows(
+            con,
+            """
+            SELECT
+              SUM(ip_outs) AS ip_outs,
+              SUM(h_allowed) AS h_allowed,
+              SUM(er) AS er,
+              SUM(bb_allowed) AS bb_allowed,
+              SUM(so_pitched) AS so_pitched,
+              SUM(hr_allowed) AS hr_allowed,
+              SUM(pitches) AS pitches,
+              SUM(strikes) AS strikes
+            FROM player_game_pitching
+            WHERE game_pk=? AND team_id=?
+            """,
+            [game_pk, team_id],
+        )
+        bt = team_batting_totals[0] if team_batting_totals else {}
+        pt = team_pitching_totals[0] if team_pitching_totals else {}
+        st.caption(
+            "Batting Totals: "
+            f"AB {int(bt.get('ab') or 0)} | H {int(bt.get('h') or 0)} | "
+            f"2B {int(bt.get('doubles') or 0)} | 3B {int(bt.get('triples') or 0)} | "
+            f"HR {int(bt.get('hr') or 0)} | RBI {int(bt.get('rbi') or 0)} | "
+            f"BB {int(bt.get('bb') or 0)} | SO {int(bt.get('so') or 0)} | "
+            f"LOB {int(bt.get('lob') or 0)}"
+        )
+        st.caption(
+            "Pitching Totals: "
+            f"IP {_format_ip(pt.get('ip_outs'))} | H {int(pt.get('h_allowed') or 0)} | "
+            f"ER {int(pt.get('er') or 0)} | BB {int(pt.get('bb_allowed') or 0)} | "
+            f"SO {int(pt.get('so_pitched') or 0)} | HR {int(pt.get('hr_allowed') or 0)} | "
+            f"P-S {int(pt.get('pitches') or 0)}-{int(pt.get('strikes') or 0)}"
+        )
         b_rows = query_rows(
             con,
             """
-            SELECT player_id, player_name, position, batting_order, ab, r, h, rbi, bb, so, hr, doubles, triples, sb, cs, hbp, sf, obp_game, slg_game, ops_game
+            SELECT player_id, player_name, position, batting_order, ab, r, h, rbi, bb, so, hr,
+                   doubles, triples, sb, cs, hbp, sf, left_on_base, obp_game, slg_game, ops_game
             FROM player_game_batting
             WHERE game_pk=? AND team_id=?
             ORDER BY batting_order ASC NULLS LAST, player_name ASC
@@ -321,6 +377,7 @@ def _render_game_boxscore(
                 "3B": r.get("triples"),
                 "SB": r.get("sb"),
                 "CS": r.get("cs"),
+                "LOB": r.get("left_on_base"),
                 "OBP": _fmt3(r.get("obp_game")),
                 "SLG": _fmt3(r.get("slg_game")),
                 "OPS": _fmt3(r.get("ops_game")),

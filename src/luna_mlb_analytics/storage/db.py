@@ -41,10 +41,20 @@ def initialize_schema(conn: sqlite3.Connection) -> None:
             player_id TEXT NOT NULL,
             player_name TEXT NOT NULL,
             team TEXT NOT NULL,
+            runs INTEGER NOT NULL DEFAULT 0,
             at_bats INTEGER NOT NULL,
             hits INTEGER NOT NULL,
+            doubles INTEGER NOT NULL DEFAULT 0,
+            triples INTEGER NOT NULL DEFAULT 0,
             home_runs INTEGER NOT NULL,
             rbi INTEGER NOT NULL,
+            base_on_balls INTEGER NOT NULL DEFAULT 0,
+            strike_outs INTEGER NOT NULL DEFAULT 0,
+            stolen_bases INTEGER NOT NULL DEFAULT 0,
+            caught_stealing INTEGER NOT NULL DEFAULT 0,
+            hit_by_pitch INTEGER NOT NULL DEFAULT 0,
+            sac_flies INTEGER NOT NULL DEFAULT 0,
+            left_on_base INTEGER NOT NULL DEFAULT 0,
             PRIMARY KEY(game_id, player_id),
             FOREIGN KEY(game_id) REFERENCES games(game_id)
         );
@@ -100,4 +110,34 @@ def initialize_schema(conn: sqlite3.Connection) -> None:
         );
         """
     )
+    _ensure_columns(
+        conn,
+        "game_players",
+        {
+            "runs": "INTEGER NOT NULL DEFAULT 0",
+            "doubles": "INTEGER NOT NULL DEFAULT 0",
+            "triples": "INTEGER NOT NULL DEFAULT 0",
+            "base_on_balls": "INTEGER NOT NULL DEFAULT 0",
+            "strike_outs": "INTEGER NOT NULL DEFAULT 0",
+            "stolen_bases": "INTEGER NOT NULL DEFAULT 0",
+            "caught_stealing": "INTEGER NOT NULL DEFAULT 0",
+            "hit_by_pitch": "INTEGER NOT NULL DEFAULT 0",
+            "sac_flies": "INTEGER NOT NULL DEFAULT 0",
+            "left_on_base": "INTEGER NOT NULL DEFAULT 0",
+        },
+    )
     conn.commit()
+
+
+def _ensure_columns(
+    conn: sqlite3.Connection,
+    table_name: str,
+    expected: dict[str, str],
+) -> None:
+    existing = {
+        row["name"]
+        for row in conn.execute(f"PRAGMA table_info({table_name})").fetchall()
+    }
+    for column, ddl in expected.items():
+        if column not in existing:
+            conn.execute(f"ALTER TABLE {table_name} ADD COLUMN {column} {ddl}")

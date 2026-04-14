@@ -140,6 +140,7 @@ def build() -> None:
           cs INTEGER,
           hbp INTEGER,
           sf INTEGER,
+          left_on_base INTEGER,
           obp_game DOUBLE,
           slg_game DOUBLE,
           ops_game DOUBLE,
@@ -327,8 +328,10 @@ def build() -> None:
 
     batting_rows = sq.execute(
         """
-        SELECT gp.game_id, gp.player_id, gp.player_name, gp.team, gp.at_bats,
-               gp.hits, gp.home_runs, gp.rbi
+        SELECT gp.game_id, gp.player_id, gp.player_name, gp.team, gp.runs, gp.at_bats,
+               gp.hits, gp.doubles, gp.triples, gp.home_runs, gp.rbi, gp.base_on_balls,
+               gp.strike_outs, gp.stolen_bases, gp.caught_stealing, gp.hit_by_pitch,
+               gp.sac_flies, gp.left_on_base
         FROM game_players gp
         JOIN games g ON g.game_id = gp.game_id
         ORDER BY g.game_date, gp.game_id, gp.player_name
@@ -360,18 +363,19 @@ def build() -> None:
                 None,
                 None,
                 ab,
-                0,
+                int(r["runs"] or 0),
                 h,
                 int(r["rbi"] or 0),
-                bb,
-                0,
+                int(r["base_on_balls"] or 0),
+                int(r["strike_outs"] or 0),
                 int(r["home_runs"] or 0),
-                0,
-                0,
-                0,
-                0,
-                hbp,
-                sf,
+                int(r["doubles"] or 0),
+                int(r["triples"] or 0),
+                int(r["stolen_bases"] or 0),
+                int(r["caught_stealing"] or 0),
+                int(r["hit_by_pitch"] or 0),
+                int(r["sac_flies"] or 0),
+                int(r["left_on_base"] or 0),
                 obp,
                 slg,
                 ops,
@@ -383,7 +387,7 @@ def build() -> None:
         dd.executemany(
             (
                 "INSERT INTO player_game_batting VALUES "
-                "(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
+                "(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
             ),
             b_inserts,
         )
@@ -431,6 +435,49 @@ def build() -> None:
             "INSERT INTO player_game_pitching VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
             p_inserts,
         )
+
+    dd.execute(
+        """
+        UPDATE team_game_results t
+        SET
+          left_on_base = COALESCE(
+            (
+              SELECT SUM(b.left_on_base)
+              FROM player_game_batting b
+              WHERE b.game_pk = t.game_pk AND b.team_id = t.team_id
+            ),
+            0
+          ),
+          team_ops_game = (
+            SELECT
+              CASE
+                WHEN SUM(b.ab) > 0 AND (SUM(b.ab) + SUM(b.bb) + SUM(b.hbp) + SUM(b.sf)) > 0
+                THEN
+                  (
+                    (SUM(b.h) + SUM(b.bb) + SUM(b.hbp))::DOUBLE
+                    / (SUM(b.ab) + SUM(b.bb) + SUM(b.hbp) + SUM(b.sf))
+                  ) +
+                  (
+                    (SUM(b.h) + SUM(b.doubles) + (2 * SUM(b.triples)) + (3 * SUM(b.hr)))::DOUBLE
+                    / SUM(b.ab)
+                  )
+                ELSE NULL
+              END
+            FROM player_game_batting b
+            WHERE b.game_pk = t.game_pk AND b.team_id = t.team_id
+          ),
+          team_era_game = (
+            SELECT
+              CASE
+                WHEN SUM(p.ip_outs) > 0
+                THEN ROUND((SUM(p.er)::DOUBLE * 27.0) / SUM(p.ip_outs), 4)
+                ELSE NULL
+              END
+            FROM player_game_pitching p
+            WHERE p.game_pk = t.game_pk AND p.team_id = t.team_id
+          )
+        """
+    )
 
     dd.execute(
         """

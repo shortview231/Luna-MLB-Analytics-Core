@@ -67,10 +67,20 @@ def _extract_players(
                 "player_id": player_id,
                 "player_name": str(person.get("fullName") or "Unknown").strip() or "Unknown",
                 "team": team_code,
+                "runs": _to_int(batting.get("runs"), 0),
                 "at_bats": _to_int(batting.get("atBats"), 0),
                 "hits": _to_int(batting.get("hits"), 0),
+                "doubles": _to_int(batting.get("doubles"), 0),
+                "triples": _to_int(batting.get("triples"), 0),
                 "home_runs": _to_int(batting.get("homeRuns"), 0),
                 "rbi": _to_int(batting.get("rbi"), 0),
+                "base_on_balls": _to_int(batting.get("baseOnBalls"), 0),
+                "strike_outs": _to_int(batting.get("strikeOuts"), 0),
+                "stolen_bases": _to_int(batting.get("stolenBases"), 0),
+                "caught_stealing": _to_int(batting.get("caughtStealing"), 0),
+                "hit_by_pitch": _to_int(batting.get("hitByPitch"), 0),
+                "sac_flies": _to_int(batting.get("sacFlies"), 0),
+                "left_on_base": _to_int(batting.get("leftOnBase"), 0),
             }
         )
     return rows
@@ -301,6 +311,19 @@ def import_bundle(bundle_path: str | Path, db_path: str | Path) -> dict:
 
     player_rows = []
     pitcher_rows = []
+
+    def _to_int(player: dict[str, Any], key: str, default: int = 0) -> int:
+        value = player.get(key, default)
+        if value is None:
+            return default
+        return int(value)
+
+    def _to_float(player: dict[str, Any], key: str, default: float = 0.0) -> float:
+        value = player.get(key, default)
+        if value is None:
+            return default
+        return float(value)
+
     for g in bundle["games"]:
         for p in g["players"]:
             player_rows.append(
@@ -309,10 +332,20 @@ def import_bundle(bundle_path: str | Path, db_path: str | Path) -> dict:
                     p["player_id"],
                     p["player_name"],
                     p["team"],
-                    int(p["at_bats"]),
-                    int(p["hits"]),
-                    int(p["home_runs"]),
-                    int(p["rbi"]),
+                    _to_int(p, "runs"),
+                    _to_int(p, "at_bats"),
+                    _to_int(p, "hits"),
+                    _to_int(p, "doubles"),
+                    _to_int(p, "triples"),
+                    _to_int(p, "home_runs"),
+                    _to_int(p, "rbi"),
+                    _to_int(p, "base_on_balls"),
+                    _to_int(p, "strike_outs"),
+                    _to_int(p, "stolen_bases"),
+                    _to_int(p, "caught_stealing"),
+                    _to_int(p, "hit_by_pitch"),
+                    _to_int(p, "sac_flies"),
+                    _to_int(p, "left_on_base"),
                 )
             )
         for p in g.get("pitchers", []):
@@ -322,24 +355,26 @@ def import_bundle(bundle_path: str | Path, db_path: str | Path) -> dict:
                     p["player_id"],
                     p["player_name"],
                     p["team"],
-                    int(p["ip_outs"]),
-                    int(p["h_allowed"]),
-                    int(p["er"]),
-                    int(p["bb_allowed"]),
-                    int(p["so_pitched"]),
-                    int(p["hr_allowed"]),
-                    int(p["pitches"]),
-                    int(p["strikes"]),
-                    float(p["era_game"]),
+                    _to_int(p, "ip_outs"),
+                    _to_int(p, "h_allowed"),
+                    _to_int(p, "er"),
+                    _to_int(p, "bb_allowed"),
+                    _to_int(p, "so_pitched"),
+                    _to_int(p, "hr_allowed"),
+                    _to_int(p, "pitches"),
+                    _to_int(p, "strikes"),
+                    _to_float(p, "era_game"),
                 )
             )
     if player_rows:
         conn.executemany(
             """
             INSERT OR REPLACE INTO game_players(
-                game_id, player_id, player_name, team, at_bats, hits, home_runs, rbi
+                game_id, player_id, player_name, team, runs, at_bats, hits, doubles, triples,
+                home_runs, rbi, base_on_balls, strike_outs, stolen_bases, caught_stealing,
+                hit_by_pitch, sac_flies, left_on_base
             )
-            VALUES(?, ?, ?, ?, ?, ?, ?, ?)
+            VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
             player_rows,
         )

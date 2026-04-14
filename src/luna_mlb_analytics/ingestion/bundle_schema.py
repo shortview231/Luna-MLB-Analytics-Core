@@ -7,8 +7,8 @@ def validate_bundle(bundle: dict) -> None:
     if missing:
         raise ValueError(f"Bundle missing keys: {sorted(missing)}")
 
-    if not isinstance(bundle["games"], list) or not bundle["games"]:
-        raise ValueError("Bundle 'games' must be a non-empty list")
+    if not isinstance(bundle["games"], list):
+        raise ValueError("Bundle 'games' must be a list")
 
     for idx, game in enumerate(bundle["games"]):
         required_game = {
