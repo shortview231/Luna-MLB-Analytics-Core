@@ -2,6 +2,11 @@
 
 Offline-first MLB analytics pipeline that imports external bundle drops, computes reproducible boxscore-derived metrics, and serves a local dashboard for team/player insights.
 
+## Latest Dev Log
+
+- **2026-04-14:** [Dashboard action-line upgrade](docs/devlogs/2026-04-14-dashboard-action-lines.md)  
+  Added real MLB-style game action text (HR/RBI/TB/RISP/LOB, notes, player summaries) to the box score modal using offline bundle data.
+
 ## Why this repo exists
 
 This project demonstrates a practical analytics architecture where data collection can happen outside the runtime environment and analysis remains reproducible locally.
@@ -68,6 +73,7 @@ Outputs land in `docs/proof/`:
 
 ## Documentation
 
+- `docs/devlogs/2026-04-14-dashboard-action-lines.md`
 - `docs/architecture.md`
 - `docs/data-model.md`
 - `docs/ingestion/luna_bundle_spec.md`
