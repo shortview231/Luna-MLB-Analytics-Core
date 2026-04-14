@@ -227,7 +227,9 @@ def _open_player_modal(con: duckdb.DuckDBPyConnection, season: int, player_id: i
         }], hide_index=True, use_container_width=True)
 
 
-def _render_game_boxscore(con: duckdb.DuckDBPyConnection, season: int, game_pk: int) -> None:
+def _render_game_boxscore(
+    con: duckdb.DuckDBPyConnection, season: int, game_pk: int, key_prefix: str = "box"
+) -> None:
     game = query_rows(
         con,
         """
@@ -327,7 +329,7 @@ def _render_game_boxscore(con: duckdb.DuckDBPyConnection, season: int, game_pk: 
                 [{k: v for k, v in row.items() if k != "player_id"} for row in bat_rows],
                 hide_index=True, use_container_width=True,
                 on_select="rerun", selection_mode="single-row",
-                key=f"box_bat_{game_pk}_{team_id}",
+                key=f"{key_prefix}_bat_{game_pk}_{team_id}",
             )
             sel = getattr(getattr(ev, "selection", None), "rows", [])
             if sel:
@@ -350,7 +352,7 @@ def _render_game_boxscore(con: duckdb.DuckDBPyConnection, season: int, game_pk: 
                 [{k: v for k, v in row.items() if k != "player_id"} for row in pit_rows],
                 hide_index=True, use_container_width=True,
                 on_select="rerun", selection_mode="single-row",
-                key=f"box_pit_{game_pk}_{team_id}",
+                key=f"{key_prefix}_pit_{game_pk}_{team_id}",
             )
             sel = getattr(getattr(ev, "selection", None), "rows", [])
             if sel:
@@ -573,7 +575,7 @@ def main() -> None:
             selected = st.selectbox("Open box score details", labels, key="boxscore_game")
             selected_pk = dict(game_options).get(selected)
             if selected_pk:
-                _render_game_boxscore(con, season, selected_pk)
+                _render_game_boxscore(con, season, selected_pk, key_prefix="standings_box")
 
     with tab_scores:
         st.subheader("League Scores")
@@ -635,11 +637,11 @@ def main() -> None:
                 if hasattr(st, "dialog"):
                     @st.dialog("Game Box Score", width="large")
                     def _score_dialog():
-                        _render_game_boxscore(con, season, selected_pk)
+                        _render_game_boxscore(con, season, selected_pk, key_prefix="scores_box")
                     _score_dialog()
                 else:
                     st.markdown("### Game Box Score")
-                    _render_game_boxscore(con, season, selected_pk)
+                    _render_game_boxscore(con, season, selected_pk, key_prefix="scores_box")
         else:
             st.info("No games found for selected date/filter.")
 
@@ -651,7 +653,7 @@ def main() -> None:
             c1, c2, c3 = st.columns(3)
             stat = c1.selectbox("Primary stat", BATTING_STATS, index=0, key="bat_stat")
             query = c2.text_input("Player search", "", key="bat_search")
-            min_ab = c3.number_input("Min AB", min_value=0, value=20, step=1, key="bat_min_ab")
+            min_ab = c3.number_input("Min AB", min_value=0, value=0, step=1, key="bat_min_ab")
 
             batting_rows = query_rows(
                 con,
@@ -701,7 +703,7 @@ def main() -> None:
             c1, c2, c3 = st.columns(3)
             stat = c1.selectbox("Primary stat", PITCHING_STATS, index=0, key="pit_stat")
             query = c2.text_input("Player search", "", key="pit_search")
-            min_outs = c3.number_input("Min outs pitched", min_value=0, value=30, step=1, key="pit_min_outs")
+            min_outs = c3.number_input("Min outs pitched", min_value=0, value=0, step=1, key="pit_min_outs")
 
             pitching_rows = query_rows(
                 con,

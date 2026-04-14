@@ -42,6 +42,12 @@ TEAM_MAP = {
     "CWS": (145, "Chicago White Sox"),
     "WSH": (120, "Washington Nationals"),
     "AZ": (109, "Arizona Diamondbacks"),
+    "CHW": (145, "Chicago White Sox"),
+    "KCR": (118, "Kansas City Royals"),
+    "SFG": (137, "San Francisco Giants"),
+    "SDP": (135, "San Diego Padres"),
+    "TBR": (139, "Tampa Bay Rays"),
+    "WSN": (120, "Washington Nationals"),
 }
 
 
@@ -375,86 +381,186 @@ def build() -> None:
             b_inserts,
         )
 
-    tstats = sq.execute(
+    dd.execute(
         """
-        SELECT team, games_played, wins, losses, runs_scored, runs_allowed, run_diff
-        FROM team_stats
-        """
-    ).fetchall()
-
-    for t in tstats:
-        team_id, team_name = _team_info(t["team"])
-        dd.execute(
-            """
-            INSERT INTO team_season_aggregates VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-            """,
-            [
-                2026,
-                team_id,
-                team_name,
-                int(t["games_played"] or 0),
-                int(t["wins"] or 0),
-                int(t["losses"] or 0),
-                int(t["runs_scored"] or 0),
-                int(t["runs_allowed"] or 0),
-                int(t["run_diff"] or 0),
-                None,
-                None,
-                None,
-                None,
-                None,
-                None,
-                datetime.now(UTC).date().isoformat(),
-            ],
+        INSERT INTO team_season_aggregates
+        WITH team_rollup AS (
+          SELECT
+            g.season,
+            t.team_id,
+            MIN(t.team_name) AS team_name,
+            COUNT(*) AS games_played,
+            SUM(t.win_flag) AS wins,
+            SUM(t.loss_flag) AS losses,
+            SUM(t.runs_scored) AS runs_scored,
+            SUM(t.runs_allowed) AS runs_allowed,
+            SUM(t.runs_scored) - SUM(t.runs_allowed) AS run_differential,
+            MAX(g.game_date) AS as_of_date
+          FROM team_game_results t
+          JOIN games g ON g.game_pk = t.game_pk
+          WHERE lower(g.status) = 'final' AND t.team_id > 0
+          GROUP BY g.season, t.team_id
+        ),
+        team_ops AS (
+          SELECT
+            g.season,
+            b.team_id,
+            CASE
+              WHEN SUM(b.ab) > 0 AND (SUM(b.ab) + SUM(b.bb) + SUM(b.hbp) + SUM(b.sf)) > 0
+              THEN
+                (
+                  (SUM(b.h) + SUM(b.bb) + SUM(b.hbp))::DOUBLE
+                  / (SUM(b.ab) + SUM(b.bb) + SUM(b.hbp) + SUM(b.sf))
+                ) +
+                (
+                  (SUM(b.h) + SUM(b.doubles) + (2 * SUM(b.triples)) + (3 * SUM(b.hr)))::DOUBLE
+                  / SUM(b.ab)
+                )
+              ELSE NULL
+            END AS team_ops
+          FROM player_game_batting b
+          JOIN games g ON g.game_pk = b.game_pk
+          WHERE lower(g.status) = 'final' AND b.team_id > 0
+          GROUP BY g.season, b.team_id
+        ),
+        team_era AS (
+          SELECT
+            g.season,
+            p.team_id,
+            CASE
+              WHEN SUM(p.ip_outs) > 0
+              THEN ROUND((SUM(p.er)::DOUBLE * 27.0) / SUM(p.ip_outs), 4)
+              ELSE NULL
+            END AS team_era
+          FROM player_game_pitching p
+          JOIN games g ON g.game_pk = p.game_pk
+          WHERE lower(g.status) = 'final' AND p.team_id > 0
+          GROUP BY g.season, p.team_id
         )
-
-    pstats = sq.execute(
+        SELECT
+          tr.season,
+          tr.team_id,
+          tr.team_name,
+          tr.games_played,
+          tr.wins,
+          tr.losses,
+          tr.runs_scored,
+          tr.runs_allowed,
+          tr.run_differential,
+          o.team_ops,
+          e.team_era,
+          NULL AS streak,
+          NULL AS last_10,
+          NULL AS next_game,
+          NULL AS next_game_time,
+          tr.as_of_date
+        FROM team_rollup tr
+        LEFT JOIN team_ops o ON o.season = tr.season AND o.team_id = tr.team_id
+        LEFT JOIN team_era e ON e.season = tr.season AND e.team_id = tr.team_id
         """
-        SELECT player_id, player_name, team, at_bats, hits, home_runs, rbi, batting_avg
-        FROM player_stats
-        """
-    ).fetchall()
+    )
 
-    for p in pstats:
-        try:
-            pid = int(str(p["player_id"]))
-        except ValueError:
-            continue
-        team_id, _team_name = _team_info(p["team"])
-        dd.execute(
-            """
-            INSERT INTO player_season_aggregates VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-            """,
-            [
-                2026,
-                pid,
-                team_id,
-                p["player_name"],
-                1,
-                int(p["at_bats"] or 0),
-                0,
-                int(p["hits"] or 0),
-                int(p["rbi"] or 0),
-                0,
-                0,
-                int(p["home_runs"] or 0),
-                0,
-                0,
-                0,
-                0,
-                0,
-                0,
-                float(p["batting_avg"] or 0.0),
-                None,
-                None,
-                None,
-                None,
-                None,
-                None,
-                None,
-                datetime.now(UTC).date().isoformat(),
-            ],
+    dd.execute(
+        """
+        INSERT INTO player_season_aggregates
+        WITH bat AS (
+          SELECT
+            g.season,
+            b.player_id,
+            b.team_id,
+            MIN(b.player_name) AS player_name,
+            COUNT(DISTINCT b.game_pk) AS games_played,
+            SUM(b.ab) AS ab,
+            SUM(b.r) AS r,
+            SUM(b.h) AS h,
+            SUM(b.rbi) AS rbi,
+            SUM(b.bb) AS bb,
+            SUM(b.so) AS so,
+            SUM(b.hr) AS hr,
+            SUM(b.doubles) AS doubles,
+            SUM(b.triples) AS triples,
+            SUM(b.sb) AS sb,
+            SUM(b.cs) AS cs,
+            SUM(b.hbp) AS hbp,
+            SUM(b.sf) AS sf,
+            CASE
+              WHEN SUM(b.ab) > 0 AND (SUM(b.ab) + SUM(b.bb) + SUM(b.hbp) + SUM(b.sf)) > 0
+              THEN
+                (
+                  (SUM(b.h) + SUM(b.bb) + SUM(b.hbp))::DOUBLE
+                  / (SUM(b.ab) + SUM(b.bb) + SUM(b.hbp) + SUM(b.sf))
+                ) +
+                (
+                  (SUM(b.h) + SUM(b.doubles) + (2 * SUM(b.triples)) + (3 * SUM(b.hr)))::DOUBLE
+                  / SUM(b.ab)
+                )
+              ELSE NULL
+            END AS ops,
+            MAX(g.game_date) AS as_of_date
+          FROM player_game_batting b
+          JOIN games g ON g.game_pk = b.game_pk
+          WHERE lower(g.status) = 'final' AND b.team_id > 0
+          GROUP BY g.season, b.player_id, b.team_id
+        ),
+        pit AS (
+          SELECT
+            g.season,
+            p.player_id,
+            p.team_id,
+            MIN(p.player_name) AS player_name,
+            COUNT(DISTINCT p.game_pk) AS games_played,
+            SUM(p.ip_outs) AS ip_outs,
+            SUM(p.er) AS er,
+            SUM(p.h_allowed) AS h_allowed,
+            SUM(p.bb_allowed) AS bb_allowed,
+            SUM(p.so_pitched) AS so_pitched,
+            SUM(p.hr_allowed) AS hr_allowed,
+            CASE
+              WHEN SUM(p.ip_outs) > 0
+              THEN ROUND((SUM(p.er)::DOUBLE * 27.0) / SUM(p.ip_outs), 4)
+              ELSE NULL
+            END AS era,
+            MAX(g.game_date) AS as_of_date
+          FROM player_game_pitching p
+          JOIN games g ON g.game_pk = p.game_pk
+          WHERE lower(g.status) = 'final' AND p.team_id > 0
+          GROUP BY g.season, p.player_id, p.team_id
         )
+        SELECT
+          COALESCE(bat.season, pit.season) AS season,
+          COALESCE(bat.player_id, pit.player_id) AS player_id,
+          COALESCE(bat.team_id, pit.team_id) AS team_id,
+          COALESCE(bat.player_name, pit.player_name) AS player_name,
+          COALESCE(bat.games_played, 0) + COALESCE(pit.games_played, 0) AS games_played,
+          COALESCE(bat.ab, 0) AS ab,
+          COALESCE(bat.r, 0) AS r,
+          COALESCE(bat.h, 0) AS h,
+          COALESCE(bat.rbi, 0) AS rbi,
+          COALESCE(bat.bb, 0) AS bb,
+          COALESCE(bat.so, 0) AS so,
+          COALESCE(bat.hr, 0) AS hr,
+          COALESCE(bat.doubles, 0) AS doubles,
+          COALESCE(bat.triples, 0) AS triples,
+          COALESCE(bat.sb, 0) AS sb,
+          COALESCE(bat.cs, 0) AS cs,
+          COALESCE(bat.hbp, 0) AS hbp,
+          COALESCE(bat.sf, 0) AS sf,
+          bat.ops AS ops,
+          pit.ip_outs,
+          pit.er,
+          pit.h_allowed,
+          pit.bb_allowed,
+          pit.so_pitched,
+          pit.hr_allowed,
+          pit.era,
+          COALESCE(bat.as_of_date, pit.as_of_date) AS as_of_date
+        FROM bat
+        FULL OUTER JOIN pit
+          ON bat.season = pit.season
+          AND bat.player_id = pit.player_id
+          AND bat.team_id = pit.team_id
+        """
+    )
 
     dd.close()
     sq.close()
