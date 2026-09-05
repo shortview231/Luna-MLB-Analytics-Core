@@ -1,8 +1,13 @@
-# Roadmap
+# Public Portfolio Maintenance
 
-## Next iterations
+This repository is maintained as a standalone analytics engineering case study.
 
-- Expand derived metrics (rolling windows, situational splits)
-- Add richer fixture sets for multi-series validation
-- Add optional DuckDB backend for larger local analysis
-- Add packaged CLI entrypoints and release artifacts
+Appropriate public updates include:
+
+- improving reproducible fixtures and tests
+- strengthening documentation
+- correcting analytical logic
+- adding public-safe proof artifacts
+- improving local usability of the demonstrated pipeline
+
+Private system relationships, unpublished product plans, commercialization strategy, and unrelated development roadmaps are outside the scope of this public repository.
