@@ -1,40 +1,48 @@
-# luna-mlb-analytics
+# MLB Analytics Pipeline
 
-Offline-first MLB analytics pipeline that imports external bundle drops, computes reproducible boxscore-derived metrics, and serves a local dashboard for team/player insights.
+An offline-first baseball analytics project that imports structured data bundles, validates them, computes reproducible metrics, stores analytical state locally, and serves team and player insights through a dashboard.
 
-## Latest Dev Log
+## Project goal
 
-- **2026-04-14:** [Dashboard action-line upgrade](docs/devlogs/2026-04-14-dashboard-action-lines.md)  
-  Added real MLB-style game action text (HR/RBI/TB/RISP/LOB, notes, player summaries) to the box score modal using offline bundle data.
+The project demonstrates an end-to-end data workflow where collection and analysis are cleanly separated. The analytics side can be rerun locally from structured inputs without depending on a live external service.
 
-## Why this repo exists
+```text
+structured data input
+  -> validation
+  -> import
+  -> deterministic derivations
+  -> local analytical storage
+  -> dashboard
+```
 
-This project demonstrates a practical analytics architecture where data collection can happen outside the runtime environment and analysis remains reproducible locally.
+## What it demonstrates
 
-Pipeline:
-
-`external collector -> inbox bundle drop -> receiver import -> derivations -> dashboard`
-
-Publishing boundary:
-
-- `luna_ingestion` handles fetching/live collection.
-- Luna is code/design-focused and not in the MLB data path.
-- This repo consumes bundles pushed directly from luna_ingestion and produces public-safe assets/docs.
-- Pushes remain manual.
+- structured JSON ingestion
+- schema and checksum validation
+- idempotent processing
+- SQLite-backed analytical storage
+- reproducible team and player aggregations
+- archive and quarantine handling for processed inputs
+- deterministic fixtures and tests
+- local Streamlit dashboarding
+- documented failure and recovery behavior
 
 ## MVP scope
 
 Included:
-- Boxscore-first offline ingestion from JSON bundle drops
-- Derived standings plus team/player aggregate stats
-- Local SQLite-backed analytics storage
-- Local Streamlit dashboard
-- Reproducible fixtures and tests
 
-Out of scope for MVP:
-- Live collector services
-- Cloud deployment and multi-user auth
-- Forecasting/predictive modeling
+- boxscore-first ingestion from structured bundle drops
+- derived standings and team/player aggregate statistics
+- local SQLite-backed storage
+- dashboard views for baseball analysis
+- reproducible fixtures and validation tests
+
+Not included:
+
+- live data-collection services
+- cloud deployment
+- multi-user authentication
+- production forecasting services
 
 ## Quickstart
 
@@ -47,47 +55,56 @@ make smoke-ingest
 make smoke-derive
 make smoke-dashboard
 make receive-inbox
-make refresh-public-assets
 streamlit run src/luna_mlb_analytics/dashboard/app.py
 ```
 
 ## Reproducibility
 
-- Sample bundle: `data/fixtures/bundles/sample_boxscore_bundle.json`
-- Expected smoke output baseline: `data/fixtures/expected/expected_summary.json`
-- Unit/integration tests validate schema, ingestion, and derivation outputs.
+The repository includes sample bundle data and expected outputs so ingestion and derivation behavior can be tested consistently.
 
-## Manual public asset refresh (no autopush)
+Key examples include:
 
-Generate landing-page-friendly images from the latest ingested bundle:
+- `data/fixtures/bundles/sample_boxscore_bundle.json`
+- `data/fixtures/expected/expected_summary.json`
+- unit and integration tests for ingestion, schema validation, and derivation output
 
-```bash
-make refresh-public-assets BUNDLE=/path/to/bundle.json
-```
+## Reliability practices
 
-Outputs land in `docs/proof/`:
-- `standings_latest.png`
-- `player_stats_latest.png`
-- date-stamped copies (`*_YYYY-MM-DD.png`)
-- `latest.json` metadata
+The ingestion workflow is designed to make failures visible and repeated runs safe.
+
+- already-imported bundle IDs are recognized instead of silently duplicated
+- malformed inputs can be separated from accepted inputs
+- run events can be logged for later inspection
+- dry-run behavior supports validation without writing data
+- deterministic processing makes failures easier to reproduce
 
 ## Documentation
 
-- `docs/devlogs/2026-04-14-dashboard-action-lines.md`
-- `docs/architecture.md`
-- `docs/data-model.md`
-- `docs/ingestion/luna_bundle_spec.md`
-- `docs/ingestion/receiver-workflow.md`
-- `docs/offline-ingestion-flow.md`
-- `docs/local-runbook.md`
-- `docs/mvp-vs-production.md`
-- `docs/roadmap.md`
+The repository includes notes covering:
 
-## Resume/portfolio positioning
+- architecture
+- data model
+- ingestion behavior
+- receiver workflow
+- local operation
+- MVP boundaries
+- proof artifacts
 
-- Highlights offline-first ingestion design and deterministic local derivations.
-- Demonstrates schema contract discipline and analytics reproducibility.
-- Shows practical end-to-end ownership: ingest, model, transform, and surface insights.
+## Skills demonstrated
+
+- Python data engineering
+- structured-data validation
+- SQLite and analytical modeling
+- ETL-style ingestion
+- idempotent workflow design
+- testing and reproducibility
+- failure handling and recovery
+- analytical dashboard development
+- technical documentation
+
+## Portfolio positioning
+
+This project is intended as a standalone example of reliable analytics engineering: accepting structured data, validating it, transforming it deterministically, preserving inspectable state, and presenting useful analytical outputs without hiding operational failure modes.
 
 ## License
 
