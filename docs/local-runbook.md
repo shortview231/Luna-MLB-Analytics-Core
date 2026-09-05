@@ -8,7 +8,7 @@ source .venv/bin/activate
 pip install -r requirements.txt
 ```
 
-## Run pipeline
+## Run the reproducibility checks
 
 ```bash
 make smoke-ingest
@@ -16,42 +16,41 @@ make smoke-derive
 make smoke-dashboard
 ```
 
-## Receive daily inbox bundles
+## Process a structured inbox bundle
 
 ```bash
-make receive-inbox DB=luna_mlb.sqlite
+make receive-inbox DB=mlb_analytics.sqlite
 ```
 
 Dry-run validation:
 
 ```bash
-PYTHONPATH=src python3 scripts/receive_mlb_inbox.py --db luna_mlb.sqlite --dry-run
+PYTHONPATH=src python3 scripts/receive_mlb_inbox.py --db mlb_analytics.sqlite --dry-run
 ```
 
-Force reprocess for an already-imported bundle ID:
+Force reprocessing for an already-imported fixture or bundle ID when testing:
 
 ```bash
-PYTHONPATH=src python3 scripts/receive_mlb_inbox.py --db luna_mlb.sqlite --force-reprocess
+PYTHONPATH=src python3 scripts/receive_mlb_inbox.py --db mlb_analytics.sqlite --force-reprocess
 ```
 
-## Refresh public visuals from a Luna export
+## Refresh demonstration visuals
 
-This repo does not fetch live data directly. It consumes bundles pushed from luna_ingestion.
+The public analytics project does not fetch live data directly. It accepts structured input bundles that satisfy the documented public contract.
 
 ```bash
-make refresh-public-assets BUNDLE=/path/to/luna_exported_bundle.json
+make refresh-public-assets BUNDLE=/path/to/mlb_bundle.json
 ```
 
-This regenerates:
-- `docs/proof/standings_latest.png`
-- `docs/proof/player_stats_latest.png`
-- `docs/proof/latest.json`
+This regenerates public demonstration artifacts under `docs/proof/`.
 
-## Launch dashboard
+## Launch the dashboard
 
 ```bash
 streamlit run src/luna_mlb_analytics/dashboard/app.py
 ```
+
+The module path above retains the project's historical package name. It does not indicate a dependency on a private system.
 
 ## Quality checks
 
@@ -60,23 +59,13 @@ make lint
 make test
 ```
 
-## Inspect inbox/archive/quarantine quickly
+## Inspect local processing state
 
 ```bash
 find artifacts/inbox/mlb -mindepth 1 -maxdepth 1 -type d | sort
-find artifacts/archive/mlb -mindepth 1 -maxdepth 1 -type d | sort | tail -n 20
+find artifacts/archive/mlb -mindepth 1 -maxdepth 1 -type d | sort
 find artifacts/quarantine/mlb -mindepth 1 -maxdepth 1 -type d | sort
 tail -n 50 artifacts/logs/mlb/receiver_runs.jsonl
 ```
 
-## Daily scheduler recommendation
-
-Cron (local, lightweight):
-
-```cron
-15 6 * * * cd <repo_root> && PYTHONPATH=src /usr/bin/python3 scripts/receive_mlb_inbox.py --db luna_mlb.sqlite >> artifacts/logs/mlb/receiver_cron.log 2>&1
-```
-
-Systemd timer (preferred for long-term local ops):
-- Service executes `scripts/receive_mlb_inbox.py`
-- Timer runs once daily after upstream bundle push window
+This runbook is limited to reproducing the behavior contained in the public repository. Private collection, scheduling, deployment, and publication infrastructure are outside its scope.
