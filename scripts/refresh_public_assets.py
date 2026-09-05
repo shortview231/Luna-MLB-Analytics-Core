@@ -245,10 +245,10 @@ def main() -> None:
     parser = argparse.ArgumentParser(
         description=(
             "Generate landing-page-ready standings/player visuals "
-            "from a Luna-exported bundle."
+            "from a structured MLB JSON bundle."
         )
     )
-    parser.add_argument("--bundle", required=True, help="Path to Luna-exported JSON bundle")
+    parser.add_argument("--bundle", required=True, help="Path to a structured MLB JSON bundle")
     parser.add_argument(
         "--output-dir",
         default="docs/proof",
