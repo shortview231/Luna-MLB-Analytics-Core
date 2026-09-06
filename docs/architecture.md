@@ -1,25 +1,26 @@
 # Architecture
 
-## System components
+## Repository components
 
-- External collector: fetches MLB source data in a separate environment.
-- Bundle drop: writes normalized JSON bundles to a shared/imported location.
-- Ingestion layer: validates bundle contract and writes canonical game/player lines to SQLite.
+- Structured input bundle: a documented JSON bundle satisfying the repository contract.
+- Ingestion layer: validates the bundle contract and writes canonical game/player lines to SQLite.
 - Transform layer: computes team standings and player aggregate metrics.
 - Dashboard layer: reads derived tables and exposes local analytics views.
 
 ## Data flow
 
-1. Collector exports a bundle and pushes directly to this repo inbox.
-2. `scripts/receive_mlb_inbox.py` scans inbox, validates bundle checksums, and imports new bundle IDs into local DB.
-3. Receiver runs derivations and atomically moves bundle to archive.
+1. A valid structured bundle is placed in the local repository inbox.
+2. `scripts/receive_mlb_inbox.py` scans the inbox, validates bundle checksums, and imports new bundle IDs into the local database.
+3. The receiver runs derivations and atomically moves accepted bundles to the archive.
 4. Failed bundles move to quarantine with reason metadata.
-5. Dashboard reads `team_stats` and `player_stats`.
+5. The dashboard reads `team_stats` and `player_stats`.
 
 ## Design choices
 
-- Offline-first guarantees operability without live network dependencies.
-- SQLite keeps environment setup simple for local reproducibility.
-- Idempotent import ledger prevents accidental duplicate bundle application.
-- Receiver lock file prevents overlapping local runs.
-- JSONL receiver logs provide low-ceremony operational visibility.
+- Offline-first operation keeps the demonstrated analytics workflow reproducible without a live network dependency.
+- SQLite keeps environment setup simple for local reproduction.
+- An idempotent import ledger prevents accidental duplicate bundle application.
+- A receiver lock file prevents overlapping local runs.
+- JSONL receiver logs provide lightweight operational visibility.
+
+The repository boundary starts with the documented structured bundle and contains everything required to reproduce the demonstrated ingestion, derivation, storage, and dashboard behavior.
