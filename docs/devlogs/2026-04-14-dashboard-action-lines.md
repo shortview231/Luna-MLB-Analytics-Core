@@ -2,44 +2,36 @@
 
 ## Summary
 
-Tonight we upgraded the MLB dashboard box score experience from stat-table-only to real game-action context sourced directly from bundle payloads.
+This update expanded the local MLB dashboard from stat-table-only box scores to richer game context derived from structured boxscore payloads.
 
-Goal: make the modal feel like a real sports app using actual game text (HR/RBI/TB/RISP/LOB lines, notes, and player summaries), while keeping the offline-first architecture intact.
+The goal was to make the analytical view more useful by surfacing batting, pitching, and game-note context while preserving deterministic offline processing.
 
-## What Changed
+## What changed
 
-- Added ingestion support for team action lines from boxscore payload:
-  - `teams.home/away.info[].fieldList[]`
-  - `teams.home/away.note[]`
-  - player `stats.batting.summary` and `stats.pitching.summary`
-  - global `boxscore.info[]` and `boxscore.pitchingNotes[]`
-- Added new sqlite storage tables:
-  - `game_team_action_lines`
-  - `game_team_notes`
-  - `game_player_summaries`
-  - `game_global_notes`
-- Updated warehouse builder to load those tables into DuckDB for dashboard queries.
-- Updated box score modal UI to render:
-  - Away/Home action columns
-  - Team notes
-  - Player summaries
-  - Global game notes
-- Added integration test coverage for the new action-line ingest path.
+- Added ingestion support for team action lines from structured boxscore fields.
+- Added storage for team action lines, team notes, player summaries, and global game notes.
+- Updated the local analytical warehouse builder to expose those records to dashboard queries.
+- Updated the box-score modal to render away/home action columns, team notes, player summaries, and global notes.
+- Added integration-test coverage for the expanded ingestion path.
 
 ## Verification
 
-- Integration tests passed (`pytest`).
-- Existing standings/scores/stats paths remained intact.
-- Action lines now display real payload text with season totals where provided in the source string.
+- Integration tests passed with the added fields.
+- Existing standings, scores, and aggregate-stat paths remained intact.
+- Action-line output was validated against the repository's structured fixture data.
 
-## Operational Notes
+## Public pipeline context
 
-- Pipeline remains: `Luna_Ingestion -> folder bundle drop -> Luna_Export receiver/import -> derive -> warehouse -> dashboard`.
-- No live/API calls added to dashboard runtime.
-- Push remains manual by design; local auto-refresh is still available for private daily updates.
+```text
+structured bundle
+  -> validation and import
+  -> derivations
+  -> local analytical storage
+  -> dashboard
+```
 
-## Next Focus
+The dashboard remains offline-first and does not require live API calls during local analysis.
 
-- Improve visual layout density for action blocks on desktop and mobile.
-- Add optional filtering for action sections (Batting/Pitching/Notes).
-- Continue validating data freshness from latest archived/inbox bundles before publish pushes.
+## Portfolio value
+
+This change demonstrates schema extension, backward-compatible ingestion, relational storage design, integration testing, and presentation of richer analytical context from structured source data.

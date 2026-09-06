@@ -9,6 +9,8 @@ __pycache__/
 *.db
 *.sqlite
 *.sqlite3
+*.duckdb
 data/raw/
 data/cache/
+data/warehouse/
 artifacts/
