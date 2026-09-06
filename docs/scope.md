@@ -8,14 +8,12 @@
 - documented architecture, schema, ingestion behavior, and local operation
 - dashboard views derived from locally processed data
 
-## Outside the public case study
+## Intentionally outside this case study
 
-- live collection infrastructure
+- live data collection services
 - managed orchestration
 - production monitoring and alerting
 - deployment infrastructure
 - multi-user authentication
-- private system relationships
-- unpublished product or commercialization plans
 
-This boundary keeps the repository focused on the data-engineering and analytics practices it demonstrates.
+This repository is intentionally limited to the standalone data-engineering and analytics behavior demonstrated by the included code, fixtures, tests, documentation, and proof outputs.
