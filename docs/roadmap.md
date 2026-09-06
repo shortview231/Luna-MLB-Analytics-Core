@@ -2,12 +2,12 @@
 
 This repository is maintained as a standalone analytics engineering case study.
 
-Appropriate public updates include:
+Appropriate updates include:
 
 - improving reproducible fixtures and tests
 - strengthening documentation
 - correcting analytical logic
-- adding public-safe proof artifacts
+- adding proof artifacts derived from included fixtures
 - improving local usability of the demonstrated pipeline
 
-Private system relationships, unpublished product plans, commercialization strategy, and unrelated development roadmaps are outside the scope of this public repository.
+The repository stays focused on the behavior and evidence contained within this case study rather than serving as a general development roadmap.
