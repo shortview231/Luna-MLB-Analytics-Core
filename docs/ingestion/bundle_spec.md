@@ -27,4 +27,4 @@ The project supports:
 - folder bundles containing a manifest, schedule, and boxscores
 - a legacy single-file JSON fixture path for compatibility and testing
 
-The public documentation intentionally describes only the analytics repository's input contract. It does not depend on or document any private upstream collection system.
+This specification defines the complete input contract needed to reproduce the ingestion behavior demonstrated by this repository.
