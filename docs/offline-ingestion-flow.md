@@ -14,7 +14,7 @@ Folder bundle required files:
 
 Reference:
 
-- `docs/ingestion/bundle_spec.md`
+- `ingestion/bundle_spec.md`
 
 ## Receiver workflow
 
