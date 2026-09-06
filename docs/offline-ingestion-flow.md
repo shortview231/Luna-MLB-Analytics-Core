@@ -22,7 +22,7 @@ Reference:
 2. Run the receiver:
 
 ```bash
-python3 scripts/receive_mlb_inbox.py --db luna_mlb.sqlite
+python3 scripts/receive_mlb_inbox.py --db mlb_analytics.sqlite
 ```
 
 3. The receiver validates checksums, imports new bundle IDs, computes derived statistics, and archives accepted inputs.
@@ -34,8 +34,8 @@ python3 scripts/receive_mlb_inbox.py --db luna_mlb.sqlite
 A single-file JSON import remains available for compatibility and reproducible testing:
 
 ```bash
-python3 scripts/run_ingest.py --bundle data/fixtures/bundles/sample_boxscore_bundle.json --db luna_mlb.sqlite
-python3 scripts/run_derivations.py --db luna_mlb.sqlite
+python3 scripts/run_ingest.py --bundle data/fixtures/bundles/sample_boxscore_bundle.json --db mlb_analytics.sqlite
+python3 scripts/run_derivations.py --db mlb_analytics.sqlite
 ```
 
-This document intentionally covers only the public repository's input and processing behavior. Upstream data-collection infrastructure is outside the public portfolio boundary.
+This document covers the complete input and processing flow needed to reproduce the repository's demonstrated analytics behavior.
