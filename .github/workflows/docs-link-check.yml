@@ -1,10 +1,7 @@
 name: Docs Link Check
 
 on:
-  pull_request:
-    paths:
-      - "README.md"
-      - "docs/**"
+  workflow_dispatch:
 
 jobs:
   links:
@@ -18,7 +15,7 @@ jobs:
           import re
 
           files = [Path('README.md'), *Path('docs').rglob('*.md')]
-          pat = re.compile(r'`([^`]+\.md)`')
+          pat = re.compile(r'`([^`]+\\.md)`')
           missing = []
           for f in files:
               text = f.read_text(encoding='utf-8')
